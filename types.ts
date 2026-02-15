@@ -32,6 +32,7 @@ export interface Message {
   timestamp: Date;
   attachments?: Attachment[];
   thoughtProcess?: string;
+  model?: string; // Track which model generated this specific message
 }
 
 export interface Session {
@@ -67,6 +68,7 @@ export interface UserSettings {
   workspaceName: string;
   workspaceIcon?: string; // base64
   visibleModels: string[];
+  defaultModel: string; // Default model for system actions (titles, etc) or fallback
   userName: string;
   timezone: string;
   language: string;

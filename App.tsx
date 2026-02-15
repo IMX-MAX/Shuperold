@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Inbox, Layout, User, Rocket, ShieldAlert, AlertTriangle, Trash2, Wrench, Menu, PlusCircle, Command, ShieldCheck, Loader2, ChevronRight, X, Check } from 'lucide-react';
 import { SidebarNavigation } from './components/SidebarNavigation';
@@ -36,6 +37,7 @@ const DEFAULT_SETTINGS: UserSettings = {
     accentColor: '#F5F5F5',
     workspaceName: 'shuper - your favorite AI executor',
     visibleModels: [...GEMINI_MODELS],
+    defaultModel: GEMINI_MODELS[0],
     userName: 'User',
     timezone: 'UTC',
     language: 'English',
@@ -246,8 +248,14 @@ const App: React.FC = () => {
   const [agents, setAgents] = useStickyState<Agent[]>([], 'shuper_agents');
   const [sessions, setSessions] = useStickyState<Session[]>([], 'shuper_sessions');
   const [sessionMessages, setSessionMessages] = useStickyState<Record<string, Message[]>>({}, 'shuper_messages');
+  const [sessionDrafts, setSessionDrafts] = useStickyState<Record<string, string>>({}, 'shuper_drafts');
   
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  
+  // Track active session ID in a Ref to access it inside stale closures (async operations)
+  const activeSessionIdRef = useRef<string | null>(null);
+  useEffect(() => { activeSessionIdRef.current = activeSessionId; }, [activeSessionId]);
+
   const [sessionLoading, setSessionLoading] = useState<Record<string, boolean>>({});
   const [sessionModels, setSessionModels] = useStickyState<Record<string, string>>({}, 'shuper_session_models');
 
@@ -257,6 +265,9 @@ const App: React.FC = () => {
   const [isWhatsNewOpen, setIsWhatsNewOpen] = useState(false);
   const [providerError, setProviderError] = useState<string | null>(null);
   
+  // Lifted state for title editing
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ type: 'chat' | 'agent', id: string, title: string } | null>(null);
   const abortControllers = useRef<Record<string, AbortController>>({});
 
@@ -268,6 +279,7 @@ const App: React.FC = () => {
     setCurrentView(state.view);
     if (state.sessionId) {
       setActiveSessionId(state.sessionId);
+      // Clear badge when navigating via history
       setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === state.sessionId ? { ...s, hasNewResponse: false } : s) : prev);
     }
   }, []);
@@ -318,8 +330,8 @@ const App: React.FC = () => {
         return;
       }
 
-      // Ctrl + . toggle both panels
-      if (e.ctrlKey && e.key === '.') {
+      // Alt + . toggle both panels (Changed from Ctrl + .)
+      if (e.altKey && e.key === '.') {
         e.preventDefault();
         const shouldBeVisible = !isSidebarVisible || !isSubSidebarVisible;
         setIsSidebarVisible(shouldBeVisible);
@@ -456,8 +468,11 @@ const App: React.FC = () => {
       navigateTo('chat', id);
       setIsMobileSessionListOpen(false);
 
+      // Clear new response badge when selecting a session
+      setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === id ? { ...s, hasNewResponse: false } : s) : prev);
+
       if (!sessionModels[id] && hasAnyKey) {
-        const defaultModel = settings.visibleModels[0] || GEMINI_MODELS[0];
+        const defaultModel = settings.defaultModel || settings.visibleModels[0] || GEMINI_MODELS[0];
         setSessionModels(prev => ({ ...prev, [id]: defaultModel }));
       }
   };
@@ -482,7 +497,7 @@ const App: React.FC = () => {
       setSessionMessages(prev => ({ ...prev, [newSession.id]: [] }));
       
       if (hasAnyKey) {
-          const defaultModel = settings.visibleModels[0] || GEMINI_MODELS[0];
+          const defaultModel = settings.defaultModel || settings.visibleModels[0] || GEMINI_MODELS[0];
           setSessionModels(prev => ({ ...prev, [newSession.id]: defaultModel }));
       }
 
@@ -501,7 +516,7 @@ const App: React.FC = () => {
           parts: [{ text: m.content }]
       }));
 
-      const newTitle = await generateSessionTitle(historyData, session.title);
+      const newTitle = await generateSessionTitle(historyData, session.title, settings.defaultModel);
       setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === sessionId ? { ...s, title: newTitle } : s) : prev);
   };
 
@@ -554,8 +569,15 @@ const App: React.FC = () => {
     const modelId = sessionModels[currentSessionId];
     if (!modelId) return;
 
-    if (activeSession?.title === 'New Chat' && text && !existingMsgId) {
-        setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === currentSessionId ? { ...s, title: text.slice(0, 30) + (text.length > 30 ? '...' : '') } : s) : prev);
+    // Strict rename logic: Only rename if it is explicitly "New Chat" and this is the first interaction.
+    // We check via functional update to be safe, but here we can check the current sessions state.
+    // If sessions state is stale in closure, we rely on the functional update in setSessions.
+    // For the initial rename (text slice), we do it ONLY if messages are empty to avoid aggressive renaming.
+    const currentSessionMessages = sessionMessages[currentSessionId] || [];
+    const isFirstMessage = currentSessionMessages.length === 0;
+
+    if (activeSession?.title === 'New Chat' && text && !existingMsgId && isFirstMessage) {
+        setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === currentSessionId && s.title === 'New Chat' ? { ...s, title: text.slice(0, 30) + (text.length > 30 ? '...' : '') } : s) : prev);
     }
 
     let newMessageId = Date.now().toString();
@@ -657,12 +679,23 @@ const App: React.FC = () => {
         if (mode === 'council' && activeSession?.councilModels) {
             setSessionMessages(prev => ({
                 ...prev,
-                [currentSessionId]: (prev[currentSessionId] || []).map(m => m.id === aiMessageId ? { ...m, thoughtProcess: 'Convening the Council: Models are deliberating in parallel...' } : m)
+                [currentSessionId]: (prev[currentSessionId] || []).map(m => m.id === aiMessageId ? { ...m, thoughtProcess: 'Convening the Council: Models are deliberating in parallel...', model: 'council' } : m)
             }));
 
-            // Fetch parallel responses
+            // Fetch parallel responses - Pass modelId directly
             const modelResponses = await Promise.all(activeSession.councilModels.map(async (mId) => {
-                const res = await sendMessageToGemini(text, historyData, systemInstruction, attachments, false, undefined, settings.apiKeys, mId, 'explore', controller.signal);
+                const res = await sendMessageToGemini(
+                    text, 
+                    historyData, 
+                    systemInstruction, 
+                    attachments, 
+                    false, 
+                    undefined, 
+                    settings.apiKeys, 
+                    mId, // Critical: pass specific model ID here
+                    'explore', 
+                    controller.signal
+                );
                 return `Response from [${mId}]:\n${res.text}`;
             }));
 
@@ -694,11 +727,12 @@ const App: React.FC = () => {
             const msgs = prev[currentSessionId] || [];
             return {
                 ...prev,
-                [currentSessionId]: msgs.map(m => m.id === aiMessageId ? { ...m, content: cleanText, thoughtProcess: response.thoughtProcess } : m)
+                [currentSessionId]: msgs.map(m => m.id === aiMessageId ? { ...m, content: cleanText, thoughtProcess: response.thoughtProcess, model: mode === 'council' ? 'council' : actualModel } : m)
             };
         });
 
-        if (currentSessionId !== activeSessionId) {
+        // Use Ref to check against the CURRENT active session, avoiding stale closure
+        if (currentSessionId !== activeSessionIdRef.current) {
             setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === currentSessionId ? { ...s, hasNewResponse: true } : s) : prev);
         }
 
@@ -856,15 +890,15 @@ const App: React.FC = () => {
 
       {isWhatsNewOpen && <WhatsNewModal isOpen={isWhatsNewOpen} onClose={() => setIsWhatsNewOpen(false)} />}
 
-      <div className="flex-1 flex overflow-hidden relative p-0 md:p-2 md:pl-0 md:gap-2 transition-all duration-500">
+      <div className="flex-1 flex overflow-hidden relative p-0 md:p-6 md:pl-0 md:gap-4 transition-all duration-500">
           {currentView === 'chat' && (
-              <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300 gap-0 md:gap-2">
+              <div className="flex flex-1 animate-in fade-in zoom-in-95 duration-300 gap-0 md:gap-4 overflow-hidden h-full">
                 <div className={`
                     w-full md:w-[300px] flex-shrink-0 
                     transition-all duration-500 ease-in-out
                     ${isMobileSessionListOpen ? 'block' : 'hidden'} 
                     ${isSubSidebarVisible ? 'md:translate-x-0 md:w-[300px] md:opacity-100 md:visible' : 'md:-translate-x-full md:w-0 md:opacity-0 md:invisible'}
-                    md:block rounded-none md:rounded-xl overflow-hidden island-card h-full
+                    md:block rounded-none md:rounded-2xl overflow-hidden island-card h-full
                 `}>
                     <SessionList 
                         sessions={filteredSessions} 
@@ -883,10 +917,11 @@ const App: React.FC = () => {
                         currentFilter={currentFilter}
                         onOpenSidebar={() => setIsMobileSidebarOpen(true)}
                         triggerSearch={triggerSearch}
+                        onEditTitle={(val) => setIsEditingTitle(val)}
                     />
                 </div>
                 
-                <div className={`flex-1 transition-all duration-300 h-full ${!isMobileSessionListOpen || !activeSessionId ? 'block' : 'hidden md:block'} rounded-none md:rounded-xl overflow-hidden island-card h-full`}>
+                <div className={`flex-1 transition-all duration-300 h-full ${!isMobileSessionListOpen || !activeSessionId ? 'block' : 'hidden md:block'} rounded-none md:rounded-2xl overflow-hidden island-card h-full`}>
                     {activeSession ? (
                         <ChatInterface 
                             key={activeSession.id}
@@ -921,6 +956,12 @@ const App: React.FC = () => {
                             onOpenSidebar={() => setIsMobileSidebarOpen(true)}
                             hasAnyKey={hasAnyKey}
                             userSettings={settings}
+                            draftValue={activeSessionId ? (sessionDrafts[activeSessionId] || '') : ''}
+                            onDraftChange={(val) => {
+                                if(activeSessionId) setSessionDrafts(prev => ({...prev, [activeSessionId]: val}));
+                            }}
+                            isEditingTitle={isEditingTitle}
+                            setIsEditingTitle={setIsEditingTitle}
                         />
                     ) : (
                         <div className="flex-1 flex items-center justify-center text-[var(--text-dim)] bg-[var(--bg-tertiary)] flex-col gap-2 h-full">
@@ -939,7 +980,7 @@ const App: React.FC = () => {
           )}
 
           {currentView === 'settings' && (
-              <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300 rounded-none md:rounded-xl overflow-hidden island-card h-full">
+              <div className="flex flex-1 animate-in fade-in zoom-in-95 duration-300 rounded-none md:rounded-2xl overflow-hidden island-card h-full">
                   <SettingsView 
                     settings={settings} 
                     onUpdateSettings={handleUpdateSettings}
@@ -952,7 +993,7 @@ const App: React.FC = () => {
           )}
 
           {currentView === 'agents' && (
-              <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300 rounded-none md:rounded-xl overflow-hidden island-card h-full">
+              <div className="flex flex-1 animate-in fade-in zoom-in-95 duration-300 rounded-none md:rounded-2xl overflow-hidden island-card h-full">
                   <AgentsView 
                     agents={agents}
                     onCreateAgent={(a) => setAgents(prev => [...prev, a])}
