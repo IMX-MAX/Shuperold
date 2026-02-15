@@ -34,7 +34,7 @@ const DEFAULT_SETTINGS: UserSettings = {
     theme: 'dark',
     accentColor: '#3B82F6',
     workspaceName: 'shuper - your favorite AI executor',
-    visibleModels: [...GEMINI_MODELS], // Enable all Gemini models by default since env key is assumed
+    visibleModels: [...GEMINI_MODELS],
     userName: 'Nathan',
     timezone: 'UTC',
     language: 'English',
@@ -43,7 +43,7 @@ const DEFAULT_SETTINGS: UserSettings = {
     baseKnowledge: '',
     sendKey: 'Enter',
     apiKeys: {
-        gemini: process.env.API_KEY || '',
+        gemini: '',
         openRouter: '',
         deepSeek: '',
         moonshot: ''
@@ -71,8 +71,8 @@ const useStickyState = <T,>(defaultValue: T, key: string): [T, React.Dispatch<Re
       const stickyValue = window.localStorage.getItem(key);
       if (stickyValue !== null) {
           const parsed = JSON.parse(stickyValue);
-          // Merge with default to ensure new fields are present
-          if (typeof defaultValue === 'object' && defaultValue !== null) {
+          // Merging objects to ensure new structure fields are kept, but NOT for arrays
+          if (typeof defaultValue === 'object' && defaultValue !== null && !Array.isArray(defaultValue)) {
               return { ...defaultValue, ...parsed };
           }
           return parsed;
@@ -109,7 +109,7 @@ const App: React.FC = () => {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isWhatsNewOpen, setIsWhatsNewOpen] = useState(false);
 
-  // Initialize active session if exists
+  // Initialize active session
   useEffect(() => {
       if (sessions.length > 0 && !activeSessionId) {
           setActiveSessionId(sessions[0].id);
@@ -125,36 +125,40 @@ const App: React.FC = () => {
   }, [settings.theme, settings.accentColor]);
 
   const filteredSessions = useMemo(() => {
+    // Safety check to ensure sessions is always an array
+    const sessionArr = Array.isArray(sessions) ? sessions : [];
+    
     if (currentFilter.startsWith('status:')) {
         const status = currentFilter.split(':')[1] as SessionStatus;
-        return sessions.filter(s => s.status === status);
+        return sessionArr.filter(s => s.status === status);
     }
     if (currentFilter.startsWith('label:')) {
         const labelId = currentFilter.split(':')[1];
-        return sessions.filter(s => s.labelIds.includes(labelId));
+        return sessionArr.filter(s => s.labelIds.includes(labelId));
     }
     switch (currentFilter) {
-        case 'flagged': return sessions.filter(s => s.isFlagged);
-        case 'archived': return sessions.filter(s => s.status === 'archive');
-        case 'all': default: return sessions.filter(s => s.status !== 'archive');
+        case 'flagged': return sessionArr.filter(s => s.isFlagged);
+        case 'archived': return sessionArr.filter(s => s.status === 'archive');
+        case 'all': default: return sessionArr.filter(s => s.status !== 'archive');
     }
   }, [sessions, currentFilter]);
 
   const statusCounts = useMemo(() => {
       const counts: Record<string, number> = { backlog: 0, todo: 0, needs_review: 0, done: 0, cancelled: 0, archive: 0 };
-      sessions.forEach(s => { if (counts[s.status] !== undefined) counts[s.status]++; });
+      if (Array.isArray(sessions)) {
+          sessions.forEach(s => { if (counts[s.status] !== undefined) counts[s.status]++; });
+      }
       return counts as Record<SessionStatus, number>;
   }, [sessions]);
 
-  const activeSession = sessions.find(s => s.id === activeSessionId);
+  const activeSession = Array.isArray(sessions) ? sessions.find(s => s.id === activeSessionId) : null;
   const activeMessages = activeSessionId ? (sessionMessages[activeSessionId] || []) : [];
   const activeLoading = activeSessionId ? (sessionLoading[activeSessionId] || false) : false;
 
   const handleUpdateSettings = useCallback((newSettings: UserSettings) => {
-    // Check for newly added API keys and enable their models
     const updatedVisibleModels = new Set(newSettings.visibleModels);
     
-    // Auto-enable Gemini models if key is provided (or changed from empty)
+    // Auto-enable Gemini models if key is provided (and was previously empty)
     if (newSettings.apiKeys.gemini && !settings.apiKeys.gemini) {
         GEMINI_MODELS.forEach(m => updatedVisibleModels.add(m));
     }
@@ -180,7 +184,7 @@ const App: React.FC = () => {
   const handleSelectSession = (id: string) => {
       if (id === activeSessionId) return;
       setActiveSessionId(id);
-      setSessions(prev => prev.map(s => s.id === id ? { ...s, hasNewResponse: false } : s));
+      setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === id ? { ...s, hasNewResponse: false } : s) : prev);
       const newHistory = history.slice(0, historyIndex + 1);
       newHistory.push(id);
       setHistory(newHistory);
@@ -193,7 +197,7 @@ const App: React.FC = () => {
           const prevId = history[newIndex];
           setHistoryIndex(newIndex);
           setActiveSessionId(prevId);
-          setSessions(prev => prev.map(s => s.id === prevId ? { ...s, hasNewResponse: false } : s));
+          setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === prevId ? { ...s, hasNewResponse: false } : s) : prev);
       }
   };
 
@@ -203,7 +207,7 @@ const App: React.FC = () => {
           const nextId = history[newIndex];
           setHistoryIndex(newIndex);
           setActiveSessionId(nextId);
-          setSessions(prev => prev.map(s => s.id === nextId ? { ...s, hasNewResponse: false } : s));
+          setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === nextId ? { ...s, hasNewResponse: false } : s) : prev);
       }
   };
 
@@ -220,7 +224,7 @@ const App: React.FC = () => {
           isFlagged: false,
           mode: 'explore'
       };
-      setSessions(prev => [newSession, ...prev]);
+      setSessions(prev => [newSession, ...(Array.isArray(prev) ? prev : [])]);
       setSessionMessages(prev => ({ ...prev, [newSession.id]: [] }));
       setSessionModels(prev => ({ ...prev, [newSession.id]: settings.visibleModels[0] || 'gemini-3-flash-preview' }));
       handleSelectSession(newSession.id);
@@ -230,7 +234,7 @@ const App: React.FC = () => {
       const messages = sessionMessages[sessionId];
       if (!messages || messages.length === 0) return;
       
-      const session = sessions.find(s => s.id === sessionId);
+      const session = Array.isArray(sessions) ? sessions.find(s => s.id === sessionId) : null;
       if (!session) return;
 
       const historyData = messages.map(m => ({
@@ -239,7 +243,7 @@ const App: React.FC = () => {
       }));
 
       const newTitle = await generateSessionTitle(historyData, session.title, settings.apiKeys.gemini);
-      setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, title: newTitle } : s));
+      setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === sessionId ? { ...s, title: newTitle } : s) : prev);
   };
 
   // --- AI Command Execution Logic ---
@@ -248,7 +252,7 @@ const App: React.FC = () => {
     if (statusMatch) {
         const newStatus = statusMatch[1].trim().toLowerCase() as SessionStatus;
         if (['backlog', 'todo', 'needs_review', 'done', 'cancelled', 'archive'].includes(newStatus)) {
-            setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, status: newStatus } : s));
+            setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === sessionId ? { ...s, status: newStatus } : s) : prev);
         }
     }
 
@@ -256,7 +260,7 @@ const App: React.FC = () => {
     if (titleMatch) {
         const newTitle = titleMatch[1].trim();
         if (newTitle) {
-            setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, title: newTitle } : s));
+            setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === sessionId ? { ...s, title: newTitle } : s) : prev);
         }
     }
 
@@ -279,11 +283,11 @@ const App: React.FC = () => {
         }
 
         if (labelIdToAdd) {
-             setSessions(prev => prev.map(s => {
+             setSessions(prev => Array.isArray(prev) ? prev.map(s => {
                  if (s.id !== sessionId) return s;
                  if (s.labelIds.includes(labelIdToAdd)) return s;
                  return { ...s, labelIds: [...s.labelIds, labelIdToAdd] };
-             }));
+             }) : prev);
         }
     }
 
@@ -299,7 +303,7 @@ const App: React.FC = () => {
     const currentSessionId = activeSessionId; 
 
     if (activeSession?.title === 'New Chat' && text) {
-        setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, title: text.slice(0, 30) + (text.length > 30 ? '...' : '') } : s));
+        setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === currentSessionId ? { ...s, title: text.slice(0, 30) + (text.length > 30 ? '...' : '') } : s) : prev);
     }
 
     const newMessage: Message = {
@@ -413,7 +417,7 @@ const App: React.FC = () => {
             };
         });
 
-        setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, hasNewResponse: true } : s));
+        setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === currentSessionId ? { ...s, hasNewResponse: true } : s) : prev);
 
     } catch (e: any) {
         console.error("Failed to send message", e);
@@ -435,24 +439,25 @@ const App: React.FC = () => {
     }
   };
 
-  const updateSessionStatus = (id: string, s: SessionStatus) => setSessions(prev => prev.map(sess => sess.id === id ? { ...sess, status: s } : sess));
-  const updateSessionMode = (id: string, m: SessionMode) => setSessions(prev => prev.map(sess => sess.id === id ? { ...sess, mode: m } : sess));
-  const updateSessionLabels = (id: string, lid: string) => setSessions(prev => prev.map(s => {
+  const updateSessionStatus = (id: string, s: SessionStatus) => setSessions(prev => Array.isArray(prev) ? prev.map(sess => sess.id === id ? { ...sess, status: s } : sess) : prev);
+  const updateSessionMode = (id: string, m: SessionMode) => setSessions(prev => Array.isArray(prev) ? prev.map(sess => sess.id === id ? { ...sess, mode: m } : sess) : prev);
+  const updateSessionLabels = (id: string, lid: string) => setSessions(prev => Array.isArray(prev) ? prev.map(s => {
       if (s.id !== id) return s;
       const hasLabel = s.labelIds.includes(lid);
       return { ...s, labelIds: hasLabel ? s.labelIds.filter(x => x !== lid) : [...s.labelIds, lid] };
-  }));
-  const toggleSessionFlag = (id: string) => setSessions(prev => prev.map(s => s.id === id ? { ...s, isFlagged: !s.isFlagged } : s));
+  }) : prev);
+  const toggleSessionFlag = (id: string) => setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === id ? { ...s, isFlagged: !s.isFlagged } : s) : prev);
   
   const deleteSession = (id: string) => {
-      setSessions(prev => prev.filter(s => s.id !== id));
+      setSessions(prev => Array.isArray(prev) ? prev.filter(s => s.id !== id) : prev);
       if (activeSessionId === id) {
-          const remaining = sessions.filter(s => s.id !== id);
+          const sessionArr = Array.isArray(sessions) ? sessions : [];
+          const remaining = sessionArr.filter(s => s.id !== id);
           if (remaining.length > 0) handleSelectSession(remaining[0].id);
           else setActiveSessionId(null);
       }
   };
-  const renameSession = (id: string, t: string) => setSessions(prev => prev.map(s => s.id === id ? { ...s, title: t } : s));
+  const renameSession = (id: string, t: string) => setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === id ? { ...s, title: t } : s) : prev);
 
   return (
     <div className="flex h-screen w-full bg-[var(--bg-primary)] overflow-hidden text-sm font-inter text-[var(--text-main)] selection:bg-[var(--accent)] selection:text-white">
