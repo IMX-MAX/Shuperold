@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Inbox, Layout, User, Rocket, ShieldAlert, AlertTriangle, Trash2, Wrench, Menu } from 'lucide-react';
+import { Inbox, Layout, User, Rocket, ShieldAlert, AlertTriangle, Trash2, Wrench, Menu, PlusCircle } from 'lucide-react';
 import { SidebarNavigation } from './components/SidebarNavigation';
 import { SessionList } from './components/SessionList';
 import { ChatInterface } from './components/ChatInterface';
@@ -199,6 +199,13 @@ const App: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobileSessionListOpen, setIsMobileSessionListOpen] = useState(true);
   
+  // Logo glow state
+  const [logoClicks, setLogoClicks] = useState(0);
+  const [isLogoGlowing, setIsLogoGlowing] = useState(false);
+
+  // Global Context Menu state
+  const [globalContextMenu, setGlobalContextMenu] = useState<{ x: number, y: number } | null>(null);
+
   // Persisted State
   const [settings, setSettings] = useStickyState<UserSettings>(DEFAULT_SETTINGS, 'shuper_settings');
   const [availableLabels, setAvailableLabels] = useStickyState<Label[]>(DEFAULT_LABELS, 'shuper_labels');
@@ -264,6 +271,25 @@ const App: React.FC = () => {
   const activeSession = Array.isArray(sessions) ? sessions.find(s => s.id === activeSessionId) : null;
   const activeMessages = activeSessionId ? (sessionMessages[activeSessionId] || []) : [];
   const activeLoading = activeSessionId ? (sessionLoading[activeSessionId] || false) : false;
+
+  const handleLogoClick = () => {
+    setLogoClicks(prev => {
+        const next = prev + 1;
+        if (next >= 10) {
+            setIsLogoGlowing(true);
+        }
+        return next;
+    });
+  };
+
+  const handleGlobalContextMenu = (e: React.MouseEvent) => {
+    // If we're right clicking on something that already has a context menu, don't show the global one
+    // We detect this by checking if default was prevented
+    if (e.defaultPrevented) return;
+    
+    e.preventDefault();
+    setGlobalContextMenu({ x: e.clientX, y: e.clientY });
+  };
 
   const handleUpdateSettings = useCallback((newSettings: UserSettings) => {
     const updatedVisibleModels = new Set(newSettings.visibleModels);
@@ -634,7 +660,10 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen w-full bg-[var(--bg-primary)] overflow-hidden text-sm font-inter text-[var(--text-main)] selection:bg-[var(--accent)] selection:text-white relative">
+    <div 
+        className="flex h-screen w-full bg-[var(--bg-primary)] overflow-hidden text-sm font-inter text-[var(--text-main)] selection:bg-[var(--accent)] selection:text-white relative"
+        onContextMenu={handleGlobalContextMenu}
+    >
       {!settings.onboardingComplete && (
           <OnboardingModal onComplete={(name, workspace) => {
               setSettings({ ...settings, userName: name, workspaceName: workspace, onboardingComplete: true });
@@ -652,6 +681,27 @@ const App: React.FC = () => {
               onConfirm={handleConfirmDelete}
               onCancel={() => setDeleteConfirmation(null)}
           />
+      )}
+
+      {globalContextMenu && (
+          <>
+            <div className="fixed inset-0 z-[100]" onClick={() => setGlobalContextMenu(null)} />
+            <div 
+                className="fixed z-[110] w-52 bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl py-1.5 text-[13px] animate-in fade-in zoom-in-95 duration-100 origin-top-left"
+                style={{ top: globalContextMenu.y, left: globalContextMenu.x }}
+            >
+                <div 
+                    onClick={() => {
+                        handleNewSession();
+                        setGlobalContextMenu(null);
+                    }}
+                    className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-white cursor-pointer rounded-lg mx-1 transition-colors"
+                >
+                    <PlusCircle className="w-4 h-4" />
+                    <span>New Session</span>
+                </div>
+            </div>
+          </>
       )}
 
       {/* Sidebar Overlay for Mobile */}
@@ -691,6 +741,8 @@ const App: React.FC = () => {
             workspaceName={settings.workspaceName}
             onShowWhatsNew={() => setIsWhatsNewOpen(true)}
             onCloseMobile={() => setIsMobileSidebarOpen(false)}
+            onLogoClick={handleLogoClick}
+            isLogoGlowing={isLogoGlowing}
           />
       </div>
 
@@ -744,6 +796,7 @@ const App: React.FC = () => {
                             onRegenerateTitle={handleRegenerateTitle}
                             onToggleFlag={() => toggleSessionFlag(activeSessionId!)}
                             onChangeView={setCurrentView}
+                            onNewSession={handleNewSession}
                             
                             visibleModels={settings.visibleModels}
                             agents={agents}

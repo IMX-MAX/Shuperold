@@ -18,7 +18,8 @@ import {
   Bot,
   Menu,
   ChevronLeft,
-  Check
+  Check,
+  PlusCircle
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -51,6 +52,7 @@ interface ChatInterfaceProps {
   sendKey: 'Enter' | 'Ctrl+Enter';
   onRegenerateTitle: (id: string) => void;
   onToggleFlag: () => void;
+  onNewSession: () => void;
   hasOpenRouterKey?: boolean;
   hasDeepSeekKey?: boolean;
   hasMoonshotKey?: boolean;
@@ -131,7 +133,7 @@ const ThinkingBlock = ({ thoughtProcess, isGenerating }: { thoughtProcess: strin
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
     session, messages, onSendMessage, onStopGeneration, isLoading, onUpdateStatus,
     availableLabels, onUpdateLabels, onCreateLabel, onDeleteSession, onRenameSession,
-    onUpdateMode, onChangeView, visibleModels, agents, currentModel, onSelectModel,
+    onUpdateMode, onChangeView, onNewSession, visibleModels, agents, currentModel, onSelectModel,
     sendKey, onRegenerateTitle, onToggleFlag, hasOpenRouterKey, hasDeepSeekKey, hasMoonshotKey,
     onBackToList, onOpenSidebar
 }) => {
@@ -187,6 +189,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           const newStatus = session.status === 'archive' ? 'todo' : 'archive';
           onUpdateStatus(newStatus);
       } else if (action === 'toggle_flag') onToggleFlag();
+      else if (action === 'new_session') onNewSession();
   };
 
   const handleChatContextMenu = (e: React.MouseEvent) => {
@@ -277,6 +280,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 className="fixed z-[110] w-56 bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl py-1.5 text-[13px] animate-in fade-in zoom-in-95 duration-100 origin-top-left"
                 style={{ top: chatContextMenu.y, left: chatContextMenu.x }}
             >
+                <div 
+                    onClick={() => {
+                        onNewSession();
+                        setChatContextMenu(null);
+                    }}
+                    className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-blue-400 cursor-pointer rounded-lg mx-1 transition-colors"
+                >
+                    <PlusCircle className="w-4 h-4" />
+                    <span className="font-semibold">New Session</span>
+                </div>
+                <div className="h-[1px] bg-[#2A2A2A] my-1 mx-2" />
                 <div className="px-2 pb-1.5 mb-1 border-b border-[#2A2A2A]">
                     <span className="px-2 text-[10px] font-bold text-[#525252] uppercase tracking-wider">Chat Settings</span>
                 </div>

@@ -33,6 +33,8 @@ interface SidebarNavigationProps {
     workspaceName: string;
     onShowWhatsNew: () => void;
     onCloseMobile?: () => void;
+    onLogoClick?: () => void;
+    isLogoGlowing?: boolean;
 }
 
 export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({ 
@@ -49,7 +51,9 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
     onChangeView,
     workspaceName,
     onShowWhatsNew,
-    onCloseMobile
+    onCloseMobile,
+    onLogoClick,
+    isLogoGlowing
 }) => {
   const [isStatusExpanded, setIsStatusExpanded] = useState(false);
   const [isLabelsExpanded, setIsLabelsExpanded] = useState(false);
@@ -63,7 +67,13 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
     <div className="w-[280px] md:w-[260px] flex-shrink-0 bg-[var(--bg-secondary)]/95 backdrop-blur-xl border-r border-[var(--border)] flex flex-col h-full text-[var(--text-muted)] text-sm z-20 transition-all duration-300">
       {/* Top Header / Logo / History */}
       <div className="h-14 flex items-center px-4 justify-between">
-        <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => onChangeView('chat')}>
+        <div 
+            className={`flex items-center gap-2 cursor-pointer hover:opacity-80 transition-all select-none ${isLogoGlowing ? 'logo-glow' : ''}`} 
+            onClick={() => {
+                onChangeView('chat');
+                if (onLogoClick) onLogoClick();
+            }}
+        >
             <span className="font-semibold text-[var(--text-main)] text-base tracking-tight">Shuper</span>
         </div>
         <div className="flex gap-1 items-center">

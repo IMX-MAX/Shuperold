@@ -9,7 +9,8 @@ import {
   RefreshCcw, 
   Trash2, 
   ChevronRight,
-  CheckCircle2
+  CheckCircle2,
+  PlusCircle
 } from 'lucide-react';
 import { SessionStatus, Label } from '../types';
 import { STATUS_CONFIG } from './StatusSelector';
@@ -63,6 +64,19 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       onClick={(e) => e.stopPropagation()} 
     >
       <div className="px-1.5 space-y-0.5">
+        <div 
+            onClick={(e) => {
+                e.stopPropagation();
+                onAction('new_session');
+                onClose();
+            }}
+            className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] hover:text-white rounded-lg cursor-pointer transition-colors text-blue-400"
+        >
+           <PlusCircle className="w-4 h-4" />
+           <span className="font-semibold">New Session</span>
+        </div>
+        <div className="h-[1px] bg-[#333] my-1 mx-2" />
+        
         {/* Status Submenu Trigger */}
         <div 
            className="relative flex items-center justify-between px-3 py-2 hover:bg-[#2A2A2A] hover:text-white rounded-lg cursor-pointer group transition-colors"
