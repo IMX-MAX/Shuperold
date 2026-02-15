@@ -7,13 +7,15 @@ import {
   Tag, 
   Archive, 
   Settings, 
-  ChevronLeft,
+  ChevronLeft, 
   ChevronRight,
   HelpCircle,
   Cpu,
   X,
   ChevronDown,
-  Sparkles
+  Sparkles,
+  // Added missing Bot icon import
+  Bot
 } from 'lucide-react';
 import { STATUS_CONFIG } from './StatusSelector';
 import { SessionStatus, Label } from '../types';
@@ -61,7 +63,7 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
   const [isLabelsExpanded, setIsLabelsExpanded] = useState(false);
 
   return (
-    <div className="w-[260px] flex-shrink-0 bg-[var(--bg-secondary)] border-r border-[var(--border)] flex flex-col h-full text-[var(--text-muted)] text-[14px] z-20 transition-all duration-300">
+    <div className="w-[260px] flex-shrink-0 bg-[var(--bg-primary)] flex flex-col h-full text-[var(--text-muted)] text-[14px] z-20 transition-all duration-300">
       <div className="h-14 flex items-center px-4 justify-between">
         <div 
             className={`flex items-center gap-2 cursor-pointer transition-all select-none group ${isLogoGlowing ? 'logo-glow' : ''}`} 
@@ -95,7 +97,7 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
             <button 
                 id="tour-new-chat"
                 onClick={onNewSession}
-                className="flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-main)] transition-all duration-200 border border-[var(--border)] bg-transparent active:scale-[0.98]"
+                className="flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-elevated)] text-[var(--text-main)] transition-all duration-200 border border-[var(--border)] bg-transparent active:scale-[0.98]"
             >
               <SquarePen className="w-4 h-4" />
               <span className="font-medium text-[14px]">New Session</span>
@@ -169,7 +171,7 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
         <div className="my-4 h-[1px] bg-[var(--border)] mx-1" />
 
         <div onClick={() => onChangeView('agents')} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${currentView === 'agents' ? 'bg-[var(--bg-elevated)] text-[var(--text-main)] font-semibold' : 'hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]'}`}>
-          <Cpu className="w-4 h-4" />
+          <Bot className="w-4 h-4" />
           <span>Agents</span>
         </div>
       </div>

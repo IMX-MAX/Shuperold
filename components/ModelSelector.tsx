@@ -41,7 +41,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
           {/* Custom Agents Section */}
           {agents.length > 0 && (
               <>
-                <div className="px-4 py-1.5 text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider bg-[var(--bg-secondary)] sticky top-0">Agents</div>
+                <div className="px-4 py-1.5 text-[10px] font-bold text-[var(--text-dim)] tracking-wider bg-[var(--bg-secondary)] sticky top-0">Agents</div>
                 {agents.map((agent) => (
                     <div
                     key={agent.id}
@@ -67,7 +67,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
           {/* Gemini Models */}
           {visibleGemini.length > 0 && (
               <>
-                <div className="px-4 py-1.5 text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider bg-[var(--bg-secondary)] sticky top-0">Google Gemini</div>
+                <div className="px-4 py-1.5 text-[10px] font-bold text-[var(--text-dim)] tracking-wider bg-[var(--bg-secondary)] sticky top-0">Google Gemini</div>
                 {visibleGemini.map((model) => (
                     <div
                     key={model}
@@ -93,7 +93,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
           {hasOpenRouterKey && visibleOpenRouter.length > 0 && (
               <>
                   <div className="my-1 h-[1px] bg-[var(--border)]" />
-                  <div className="px-4 py-1.5 text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider bg-[var(--bg-secondary)] sticky top-0">OpenRouter (Free)</div>
+                  <div className="px-4 py-1.5 text-[10px] font-bold text-[var(--text-dim)] tracking-wider bg-[var(--bg-secondary)] sticky top-0">OpenRouter (Free)</div>
                   {visibleOpenRouter.map((model) => (
                     <div
                       key={model}
@@ -119,7 +119,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
           {hasDeepSeekKey && visibleDeepSeek.length > 0 && (
               <>
                   <div className="my-1 h-[1px] bg-[var(--border)]" />
-                  <div className="px-4 py-1.5 text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider bg-[var(--bg-secondary)] sticky top-0">DeepSeek</div>
+                  <div className="px-4 py-1.5 text-[10px] font-bold text-[var(--text-dim)] tracking-wider bg-[var(--bg-secondary)] sticky top-0">DeepSeek</div>
                   {visibleDeepSeek.map((model) => (
                     <div
                       key={model}
@@ -145,7 +145,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
           {hasMoonshotKey && visibleMoonshot.length > 0 && (
               <>
                   <div className="my-1 h-[1px] bg-[var(--border)]" />
-                  <div className="px-4 py-1.5 text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider bg-[var(--bg-secondary)] sticky top-0">Moonshot AI</div>
+                  <div className="px-4 py-1.5 text-[10px] font-bold text-[var(--text-dim)] tracking-wider bg-[var(--bg-secondary)] sticky top-0">Moonshot AI</div>
                   {visibleMoonshot.map((model) => (
                     <div
                       key={model}

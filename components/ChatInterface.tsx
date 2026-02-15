@@ -7,6 +7,7 @@ import {
   Terminal, 
   Search, 
   Globe, 
+  Globe2,
   Eye, 
   Loader2, 
   AlertTriangle, 
@@ -24,7 +25,6 @@ import {
   CircleDot,
   ArrowDown,
   Zap,
-  ListTodo,
   PanelRightOpen,
   LayoutTemplate,
   PanelRight,
@@ -34,14 +34,13 @@ import {
 import Markdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import vscDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus';
-import { Message, Session, Label, Attachment, Agent, OPENROUTER_FREE_MODELS, DEEPSEEK_MODELS, MOONSHOT_MODELS, GEMINI_MODELS, SessionMode, Task, UserSettings } from '../types';
+import { Message, Session, Label, Attachment, Agent, OPENROUTER_FREE_MODELS, DEEPSEEK_MODELS, MOONSHOT_MODELS, GEMINI_MODELS, SessionMode, UserSettings } from '../types';
 import { InputArea } from './InputArea';
 import { SessionStatus } from '../types';
 import { ContextMenu } from './ContextMenu';
 import { StatusSelector, STATUS_CONFIG } from './StatusSelector';
 import { LabelSelector } from './LabelSelector';
 import { suggestLabels } from '../services/geminiService';
-import { TaskPanel } from './TaskPanel';
 
 interface ChatInterfaceProps {
   session: Session;
@@ -71,7 +70,6 @@ interface ChatInterfaceProps {
   onBackToList?: () => void;
   onOpenSidebar?: () => void;
   hasAnyKey?: boolean;
-  onUpdateTasks?: (tasks: Task[]) => void;
   userSettings?: UserSettings;
 }
 
@@ -81,43 +79,48 @@ const WaveLoader = () => (
   </div>
 );
 
-const ThinkingBlock = ({ steps, isGenerating }: { steps: string[], isGenerating?: boolean }) => {
+const ThinkingBlock = ({ steps, thoughtProcess, isGenerating }: { steps: string[], thoughtProcess?: string, isGenerating?: boolean }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [lastStepsCount, setLastStepsCount] = useState(0);
 
     useEffect(() => {
-        if (isGenerating && steps.length > lastStepsCount) {
+        if (isGenerating && (steps.length > lastStepsCount || thoughtProcess)) {
             setIsExpanded(true);
             setLastStepsCount(steps.length);
         }
-    }, [isGenerating, steps.length, lastStepsCount]);
+    }, [isGenerating, steps.length, lastStepsCount, thoughtProcess]);
 
-    if (steps.length === 0 && !isGenerating) return null;
+    if (steps.length === 0 && !isGenerating && !thoughtProcess) return null;
 
     return (
         <div className="mb-6 animate-in fade-in slide-in-from-top-1 duration-500">
             <button 
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="flex items-center gap-3 text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-widest hover:text-[var(--text-muted)] transition-all mb-4 group"
+                className="flex items-center gap-3 text-[11px] font-bold text-[var(--text-dim)] tracking-widest hover:text-[var(--text-muted)] transition-all mb-4 group"
             >
                 <div className={`p-1 rounded-md border border-[var(--border)] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
                     <ChevronDown className="w-3 h-3" />
                 </div>
-                <span>{isGenerating ? 'Working on a plan' : `Steps Taken (${steps.length})`}</span>
+                <span>{isGenerating ? 'Analyzing Requirements' : (thoughtProcess ? 'View Chain of Thought' : `Steps taken (${steps.length})`)}</span>
             </button>
             
-            <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+            <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
                 <div className="relative ml-2.5 pl-6 border-l-2 border-[var(--text-muted)]/30 space-y-5 py-2">
+                    {thoughtProcess && (
+                        <div className="text-[14px] text-[var(--text-muted)] leading-relaxed italic opacity-80 whitespace-pre-wrap font-medium pb-4 border-b border-[var(--border)]">
+                            {thoughtProcess}
+                        </div>
+                    )}
                     {steps.map((step, idx) => (
                         <div key={idx} className="relative animate-in fade-in slide-in-from-left-2 duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
                             <div className="text-[14px] text-[var(--text-muted)] leading-relaxed font-semibold">{step}</div>
                         </div>
                     ))}
                     {isGenerating && (
-                        <div className="flex items-start gap-4 text-[var(--text-dim)] py-2">
-                            <div className="mt-1 flex-shrink-0"><WaveLoader /></div>
+                        <div className="flex items-center gap-4 text-[var(--text-dim)] py-2">
+                            <div className="mt-0.5 flex-shrink-0"><WaveLoader /></div>
                             <div className="flex flex-col gap-1">
-                                <span className="font-bold tracking-widest uppercase text-[10px] text-[var(--text-main)] italic">Waiting for response...</span>
+                                <span className="font-bold tracking-widest text-[10px] text-[var(--text-muted)] italic">Working...</span>
                             </div>
                         </div>
                     )}
@@ -132,9 +135,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     availableLabels, onUpdateLabels, onCreateLabel, onDeleteSession, onRenameSession,
     onUpdateMode, onChangeView, onNewSession, visibleModels, agents, currentModel, onSelectModel,
     sendKey, onRegenerateTitle, onToggleFlag, hasOpenRouterKey, hasDeepSeekKey, hasMoonshotKey,
-    onBackToList, onOpenSidebar, hasAnyKey, onUpdateTasks, userSettings
+    onBackToList, onOpenSidebar, hasAnyKey, userSettings
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const statusButtonRef = useRef<HTMLButtonElement>(null);
+  const labelButtonRef = useRef<HTMLButtonElement>(null);
+
   const [titleMenuPosition, setTitleMenuPosition] = useState<{x: number, y: number} | null>(null);
   const [chatContextMenu, setChatContextMenu] = useState<{x: number, y: number} | null>(null);
   const [messageContextMenu, setMessageContextMenu] = useState<{x: number, y: number, messageId: string} | null>(null);
@@ -142,11 +148,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editedTitle, setEditedTitle] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
   const [editContent, setEditContent] = useState<string>('');
   
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const [isLabelMenuOpen, setIsLabelMenuOpen] = useState(false);
+  
+  const [statusMenuPos, setStatusMenuPos] = useState<{ top: number, right: number } | undefined>(undefined);
+  const [labelMenuPos, setLabelMenuPos] = useState<{ top: number, right: number } | undefined>(undefined);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -168,10 +176,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (e.altKey && e.key.toLowerCase() === 'a') {
       e.preventDefault();
       onUpdateMode(session.mode === 'execute' ? 'explore' : 'execute');
-    }
-    if (e.altKey && e.key.toLowerCase() === 't' && userSettings?.enableTasks) {
-      e.preventDefault();
-      setIsTaskPanelOpen(!isTaskPanelOpen);
     }
   };
 
@@ -240,18 +244,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     });
   };
 
-  const handleToggleTask = (taskId: string) => {
-    if (!onUpdateTasks || !session.tasks) return;
-    const newTasks = session.tasks.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t);
-    onUpdateTasks(newTasks);
-  };
-
-  const handleDeleteTask = (taskId: string) => {
-    if (!onUpdateTasks || !session.tasks) return;
-    const newTasks = session.tasks.filter(t => t.id !== taskId);
-    onUpdateTasks(newTasks);
-  };
-
   const processModelOutput = (content: string, mode: SessionMode) => {
     const lines = content.split('\n');
     const planSteps: string[] = [];
@@ -277,6 +269,22 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return { planSteps, mainContent: mainLines.join('\n').trim() };
   };
 
+  const openStatusMenu = () => {
+      if (statusButtonRef.current) {
+          const rect = statusButtonRef.current.getBoundingClientRect();
+          setStatusMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+          setIsStatusMenuOpen(true);
+      }
+  };
+
+  const openLabelMenu = () => {
+      if (labelButtonRef.current) {
+          const rect = labelButtonRef.current.getBoundingClientRect();
+          setLabelMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+          setIsLabelMenuOpen(true);
+      }
+  };
+
   const StatusIcon = STATUS_CONFIG[session.status].icon;
 
   const headerLabelText = session.labelIds.length > 0 
@@ -293,7 +301,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         tabIndex={-1}
     >
       <div className="flex-1 flex flex-col h-full relative">
-        <div className="h-14 flex items-center justify-between px-6 border-b border-[var(--border)] z-30 absolute top-0 left-0 right-0 bg-[var(--bg-tertiary)]/80 backdrop-blur-md">
+        <div className="h-14 flex items-center justify-between px-6 z-30 absolute top-0 left-0 right-0 bg-[var(--bg-tertiary)]/80 backdrop-blur-md">
           <div className="flex items-center gap-2 max-w-[60%]">
               {onBackToList && (
                   <button onClick={onBackToList} className="md:hidden p-1 rounded hover:bg-[var(--bg-elevated)] text-[var(--text-main)]"><ChevronLeft className="w-5 h-5" /></button>
@@ -331,34 +339,33 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </div>
           
           <div className="flex items-center gap-1.5 md:gap-2">
-               <button onClick={() => setIsStatusMenuOpen(true)} className="flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--border)] bg-[#E5E5E5]/5 hover:bg-[#E5E5E5]/10 transition-all text-[11px] font-medium text-[var(--text-muted)] group">
-                   <StatusIcon className={`w-3 h-3 ${STATUS_CONFIG[session.status].color} group-hover:text-white`} />
+               <button 
+                  ref={statusButtonRef}
+                  onClick={openStatusMenu} 
+                  className="flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--border)] bg-[#E5E5E5]/5 hover:bg-[#E5E5E5]/10 transition-all text-[11px] font-medium text-[var(--text-muted)] group"
+                >
+                   <StatusIcon className={`w-3.5 h-3.5 ${STATUS_CONFIG[session.status].color} group-hover:text-white`} />
                    <span className="hidden sm:inline lowercase">{STATUS_CONFIG[session.status].label}</span>
                    <ChevronDown className="w-2.5 h-2.5 opacity-50" />
                </button>
-               <StatusSelector isOpen={isStatusMenuOpen} onClose={() => setIsStatusMenuOpen(false)} currentStatus={session.status} onSelect={onUpdateStatus} position={{ top: 44, right: 100 }} />
+               <StatusSelector isOpen={isStatusMenuOpen} onClose={() => setIsStatusMenuOpen(false)} currentStatus={session.status} onSelect={onUpdateStatus} position={statusMenuPos} />
                
-               <button onClick={() => setIsLabelMenuOpen(true)} className="flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--border)] bg-[#E5E5E5]/5 hover:bg-[#E5E5E5]/10 transition-all text-[11px] font-medium text-[var(--text-muted)] group max-w-[120px]">
+               <button 
+                  ref={labelButtonRef}
+                  onClick={openLabelMenu} 
+                  className="flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--border)] bg-[#E5E5E5]/5 hover:bg-[#E5E5E5]/10 transition-all text-[11px] font-medium text-[var(--text-muted)] group max-w-[120px]"
+                >
                    <Tag className="w-3 h-3 text-[var(--text-dim)] group-hover:text-white flex-shrink-0" />
                    <span className="hidden sm:inline truncate lowercase">{headerLabelText}</span>
                    <ChevronDown className="w-2.5 h-2.5 opacity-50 flex-shrink-0" />
                </button>
-               <LabelSelector isOpen={isLabelMenuOpen} onClose={() => setIsLabelMenuOpen(false)} availableLabels={availableLabels} selectedLabelIds={session.labelIds} onToggleLabel={onUpdateLabels} onSuggestWithAI={handleSuggestLabels} position={{ top: 44, right: 60 }} />
-
-               <div className="w-[1px] h-4 bg-[var(--border)] mx-1" />
-               <button 
-                  id="tour-tasks-toggle"
-                  onClick={() => setIsTaskPanelOpen(!isTaskPanelOpen)}
-                  className={`p-1.5 rounded-lg transition-all text-[var(--text-dim)] hover:text-white ${isTaskPanelOpen ? 'bg-[var(--bg-elevated)]' : ''}`}
-                >
-                  <PanelRight className="w-4.5 h-4.5" />
-                </button>
+               <LabelSelector isOpen={isLabelMenuOpen} onClose={() => setIsLabelMenuOpen(false)} availableLabels={availableLabels} selectedLabelIds={session.labelIds} onToggleLabel={onUpdateLabels} onSuggestWithAI={handleSuggestLabels} position={labelMenuPos} />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 pt-20 pb-48 custom-scrollbar" ref={scrollRef}>
+        <div className="flex-1 overflow-y-auto px-4 pt-20 pb-72 custom-scrollbar" ref={scrollRef}>
           {!hasAnyKey && (
-              <div className="max-w-xl mx-auto mt-20 p-8 rounded-3xl bg-[var(--bg-elevated)] border border-[var(--border)] text-center animate-in fade-in zoom-in-95 duration-500 shadow-2xl">
+              <div className="max-w-xl mx-auto mt-20 p-8 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-center animate-in fade-in zoom-in-95 duration-500 shadow-2xl">
                   <div className="w-16 h-16 rounded-2xl bg-neutral-500/10 flex items-center justify-center mx-auto mb-6"><Key className="w-8 h-8 text-[var(--text-main)]" /></div>
                   <h2 className="text-xl font-bold mb-3 text-white">Setup Needed</h2>
                   <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-8">You need to add your API keys to start chatting. Head over to settings to connect.</p>
@@ -373,7 +380,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       const isGenerating = isLast && isLoading && msg.role === 'model';
                       const { planSteps, mainContent } = processModelOutput(msg.content, session.mode || 'explore');
                       
-                      const showInitialLoader = isGenerating && planSteps.length === 0 && !mainContent;
+                      const showInitialLoader = isGenerating && planSteps.length === 0 && !mainContent && !msg.thoughtProcess;
 
                       return (
                       <div key={msg.id} className={`flex flex-col gap-4 ${msg.role === 'user' ? 'items-end' : 'items-start'} animate-message`}>
@@ -389,19 +396,21 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                           ))}
                                       </div>
                                   )}
-                                  <div className="bg-[#E5E5E5]/10 text-[var(--text-main)] p-3 px-5 rounded-[20px] text-[15px] font-medium shadow-sm transition-colors border border-transparent leading-relaxed cursor-default">{msg.content}</div>
+                                  <div className="bg-[#E5E5E5]/10 text-[var(--text-main)] p-3 px-5 rounded-2xl text-[15px] font-medium shadow-sm transition-colors border border-transparent leading-relaxed cursor-default">{msg.content}</div>
                               </div>
                           ) : (
                               <div className="w-full text-[var(--text-main)] leading-relaxed text-[15px] flex flex-col gap-1 group/msg">
                                   {showInitialLoader && (
                                       <div className="flex items-center gap-4 text-[var(--text-main)] text-xs md:text-sm animate-pulse ml-1 mb-8 py-2">
                                           <WaveLoader />
-                                          <span className="font-bold tracking-widest uppercase text-[11px] text-[var(--text-muted)] italic">
-                                            Thinking...
+                                          <span className="font-bold tracking-widest text-[11px] text-[var(--text-muted)] italic">
+                                            Generating...
                                           </span>
                                       </div>
                                   )}
-                                  {session.mode === 'execute' && (planSteps.length > 0 || isGenerating) && <ThinkingBlock steps={planSteps} isGenerating={isGenerating} />}
+                                  {(session.mode === 'execute' || msg.thoughtProcess || isGenerating) && (
+                                      <ThinkingBlock steps={planSteps} thoughtProcess={msg.thoughtProcess} isGenerating={isGenerating} />
+                                  )}
                                   {mainContent && (
                                       <div className="markdown-body transition-opacity duration-300 overflow-x-auto font-medium">
                                           <Markdown components={{
@@ -417,7 +426,23 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                                   {copiedId === codeId && <span className="text-[11px] font-bold uppercase tracking-wider">Copied</span>}
                                                               </button>
                                                           </div>
-                                                          <SyntaxHighlighter style={vscDarkPlus} language={match[1]} PreTag="div" customStyle={{ margin: 0, padding: '1.25rem', borderRadius: '1rem', background: '#080808', border: '1px solid var(--border)', fontSize: '13px', lineHeight: '1.7' }} {...props}>{codeString}</SyntaxHighlighter>
+                                                          <SyntaxHighlighter 
+                                                              style={vscDarkPlus} 
+                                                              language={match[1]} 
+                                                              PreTag="div" 
+                                                              customStyle={{ 
+                                                                  margin: 0, 
+                                                                  padding: '1.25rem', 
+                                                                  borderRadius: '1rem', 
+                                                                  background: '#0a0a0c', 
+                                                                  border: '1px solid var(--border)', 
+                                                                  fontSize: '13px', 
+                                                                  lineHeight: '1.7' 
+                                                              }} 
+                                                              {...props}
+                                                          >
+                                                              {codeString}
+                                                          </SyntaxHighlighter>
                                                       </div>
                                                   ) : ( <code className={`${className} bg-[var(--bg-elevated)] px-2 py-0.5 rounded-lg text-[0.9em] border border-[var(--border)] font-bold text-[var(--text-main)]`} {...props}>{children}</code> )
                                               }
@@ -425,10 +450,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                       </div>
                                   )}
                                   {!isGenerating && mainContent && (
-                                      <div className="flex items-center gap-5 mt-4 opacity-100 md:opacity-0 group-hover/msg:opacity-100 transition-all">
-                                          <button onClick={() => handleCopyText(mainContent, msg.id)} className={`flex items-center gap-2 transition-all group/btn font-bold ${copiedId === msg.id ? 'text-emerald-400' : 'text-[var(--text-dim)] hover:text-white'}`}>
-                                              {copiedId === msg.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5 group-hover/btn:scale-110" />}
-                                              <span className="text-[11px] font-bold uppercase tracking-widest">{copiedId === msg.id ? 'Copied' : 'Copy'}</span>
+                                      <div className="flex items-center gap-5 mt-2 transition-all">
+                                          <button onClick={() => handleCopyText(mainContent, msg.id)} className={`flex items-center gap-2 transition-all group/btn font-bold ${copiedId === msg.id ? 'text-emerald-400' : 'text-[var(--text-dim)] hover:text-[var(--text-main)]'}`}>
+                                              {copiedId === msg.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3 group-hover/btn:scale-110" />}
+                                              <span className="text-[10px] font-bold uppercase tracking-widest opacity-80 group-hover/btn:opacity-100">{copiedId === msg.id ? 'Copied' : 'Copy'}</span>
                                           </button>
                                       </div>
                                   )}
@@ -454,7 +479,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </>
         )}
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 md:p-10 z-40 flex justify-center">
+        <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 z-40 flex justify-center">
              <InputArea 
                   onSend={(text, atts, thinking, mode) => {
                       onSendMessage(text, atts, thinking, mode, editingMessageId || undefined);
@@ -477,9 +502,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   hasOpenRouterKey={hasOpenRouterKey}
                   hasDeepSeekKey={hasDeepSeekKey}
                   hasMoonshotKey={hasMoonshotKey}
+                  hasAnyKey={hasAnyKey}
                   currentMode={session.mode || 'explore'}
                   onUpdateMode={onUpdateMode}
-                  hasAnyKey={hasAnyKey}
                   onUpArrow={handleUpArrowOnInput}
                   externalValue={editContent}
              />
@@ -502,16 +527,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             />
         )}
       </div>
-
-      {userSettings?.enableTasks && (
-          <TaskPanel 
-            tasks={session.tasks || []} 
-            isOpen={isTaskPanelOpen} 
-            onToggle={() => setIsTaskPanelOpen(!isTaskPanelOpen)}
-            onToggleTask={handleToggleTask}
-            onDeleteTask={handleDeleteTask}
-          />
-      )}
     </div>
   );
 };

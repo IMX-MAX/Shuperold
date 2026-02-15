@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronRight, ChevronLeft, X, Rocket, Zap, Sparkles, Settings, MessageSquare, Target, PlusCircle, ListTodo, Key } from 'lucide-react';
+import { ChevronRight, ChevronLeft, X, Rocket, Zap, Sparkles, Settings, MessageSquare, Target, PlusCircle, ListTodo, Key, Cpu } from 'lucide-react';
 
 interface TourStep {
   id: string;
@@ -32,11 +32,11 @@ const TOUR_STEPS: TourStep[] = [
     icon: Target
   },
   {
-    id: 'tasks',
-    targetId: 'tour-tasks-toggle',
-    title: 'Keep track',
-    description: 'Use the task panel on the right to stay focused on your goals during a chat.',
-    icon: ListTodo
+    id: 'models',
+    targetId: 'tour-model-selector',
+    title: 'Pick your Brain',
+    description: 'Switch between different AI models or your custom agents here. Each one has unique strengths.',
+    icon: Cpu
   },
   {
     id: 'settings',
@@ -62,7 +62,7 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ onComplete, onSkip, on
   useEffect(() => {
     // Ensure the app is in a state where elements exist
     // Only call onNewSession if we actually need a session for the tour step and don't have one
-    if ((currentStep.id === 'mode' || currentStep.id === 'tasks') && onNewSession) {
+    if ((currentStep.id === 'mode' || currentStep.id === 'models') && onNewSession) {
         const hasSessions = document.querySelector('[data-session-id]');
         if (!hasSessions) {
             onNewSession();

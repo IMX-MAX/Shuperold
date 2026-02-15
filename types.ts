@@ -1,7 +1,10 @@
+
 import React from 'react';
 
 export type SessionStatus = 'backlog' | 'todo' | 'needs_review' | 'done' | 'cancelled' | 'archive';
 export type SessionMode = 'explore' | 'execute';
+export type ColorTheme = 'Default' | 'Catppuccin' | 'Dracula' | 'Ghostty' | 'GitHub' | 'Gruvbox' | 'Haze' | 'Tokyo Night' | 'Solarized' | 'Rose Pine' | 'AAITN' | 'One Dark Pro' | 'Pierre' | 'Nord';
+export type FontFamily = 'Inter' | 'System';
 
 export interface Label {
   id: string;
@@ -57,7 +60,9 @@ export interface Agent {
 }
 
 export interface UserSettings {
-  theme: 'dark' | 'light';
+  theme: 'dark' | 'light' | 'system';
+  colorTheme: ColorTheme;
+  fontFamily: FontFamily;
   accentColor: string;
   workspaceName: string;
   workspaceIcon?: string; // base64

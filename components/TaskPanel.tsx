@@ -19,7 +19,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({ tasks, isOpen, onToggle, o
     >
       <div className="h-14 flex items-center justify-between px-6 border-b border-[var(--border)] flex-shrink-0 bg-[var(--bg-primary)]/40">
         <div className="flex items-center gap-2">
-          <span className="font-bold text-[11px] text-[var(--text-muted)] uppercase tracking-[0.2em]">Session Tasks</span>
+          <span className="font-bold text-[11px] text-[var(--text-muted)] tracking-[0.1em]">Session tasks</span>
         </div>
       </div>
 
@@ -37,7 +37,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({ tasks, isOpen, onToggle, o
         ) : (
           <div className="space-y-2">
             <div className="flex items-center justify-between px-1 mb-5">
-              <span className="text-[10px] font-black text-[var(--text-dim)] uppercase tracking-[0.15em]">
+              <span className="text-[10px] font-bold text-[var(--text-dim)] tracking-wide">
                 {tasks.filter(t => t.completed).length} / {tasks.length} Completed
               </span>
             </div>
@@ -78,7 +78,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({ tasks, isOpen, onToggle, o
       </div>
 
       <div className="p-6 border-t border-[var(--border)] bg-[var(--bg-primary)]/20">
-        <div className="text-[10px] text-[var(--text-dim)] font-bold text-center leading-relaxed uppercase tracking-wider">
+        <div className="text-[10px] text-[var(--text-dim)] font-bold text-center leading-relaxed tracking-wide">
           System managed. Re-emit plan to sync.
         </div>
       </div>

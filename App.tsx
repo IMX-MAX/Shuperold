@@ -19,8 +19,7 @@ import {
     GEMINI_MODELS, 
     DEEPSEEK_MODELS, 
     MOONSHOT_MODELS, 
-    SessionMode,
-    Task
+    SessionMode
 } from './types';
 import { sendMessageToGemini, generateSessionTitle } from './services/geminiService';
 
@@ -32,8 +31,10 @@ const DEFAULT_LABELS: Label[] = [
 
 const DEFAULT_SETTINGS: UserSettings = {
     theme: 'dark',
+    colorTheme: 'Default',
+    fontFamily: 'Inter',
     accentColor: '#F5F5F5',
-    workspaceName: 'My Workspace',
+    workspaceName: 'shuper - your favorite AI executor',
     visibleModels: [...GEMINI_MODELS],
     userName: 'User',
     timezone: 'UTC',
@@ -43,7 +44,7 @@ const DEFAULT_SETTINGS: UserSettings = {
     baseKnowledge: '',
     sendKey: 'Enter',
     onboardingComplete: false,
-    enableTasks: true,
+    enableTasks: false,
     apiKeys: {
         openRouter: '',
         openRouterAlt: '',
@@ -52,7 +53,7 @@ const DEFAULT_SETTINGS: UserSettings = {
     }
 };
 
-const getSystemInstruction = (userName: string, mode: SessionMode) => `
+const getSystemInstruction = (userName: string, mode: SessionMode, availableLabels: Label[]) => `
 IDENTITY:
 You are a high-performance assistant.
 CURRENT MODE: ${mode.toUpperCase()}
@@ -73,13 +74,13 @@ Example:
 [Your answer here]
 ` : ''}
 
+AVAILABLE LABELS (TAGS):
+${availableLabels.length > 0 ? availableLabels.map(l => `- ${l.name}`).join('\n') : 'No labels available.'}
+
 CAPABILITIES:
 - [[TITLE: New Title]] - Change the chat name.
 - [[STATUS: backlog | todo | needs_review | done | cancelled | archive]] - Change chat status.
-- [[LABEL: Label Name]] - Add a tag.
-- [[ADD_TASK: Task description]] - Add a subtask.
-- [[DONE_TASK: Task description]] - Finish a task.
-- [[REMOVE_TASK: Task description]] - Delete a task.
+- [[LABEL: Label Name]] - Add a tag. IMPORTANT: ONLY use existing labels listed above. DO NOT create or invent new ones. If a relevant label is not in the list, do not use the LABEL command.
 `;
 
 function useStickyState<T>(defaultValue: T, key: string): [T, React.Dispatch<React.SetStateAction<T>>] {
@@ -131,7 +132,6 @@ const OnboardingModal: React.FC<{ onComplete: (name: string, workspace: string) 
             </div>
 
             <div className="w-full max-w-lg space-y-4 mb-16">
-                {/* Name Input Card */}
                 <div 
                     className={`relative group p-6 bg-[#1A1A1A]/30 border rounded-[28px] transition-all duration-300 flex items-center gap-5 cursor-text border-white/5 hover:border-white/10 ${name.trim() ? 'border-white/20 bg-[#1A1A1A]/50 ring-1 ring-white/5' : ''}`}
                     onClick={() => document.getElementById('onboarding-name')?.focus()}
@@ -140,7 +140,7 @@ const OnboardingModal: React.FC<{ onComplete: (name: string, workspace: string) 
                         <User className="w-6 h-6" strokeWidth={2} />
                     </div>
                     <div className="flex-1 flex flex-col">
-                        <label className="text-[12px] font-bold text-white/40 uppercase tracking-[0.05em] mb-1">Your Name</label>
+                        <label className="text-[12px] font-bold text-white/40 mb-1">Your Name</label>
                         <input 
                             id="onboarding-name"
                             value={name}
@@ -154,7 +154,6 @@ const OnboardingModal: React.FC<{ onComplete: (name: string, workspace: string) 
                     </div>
                 </div>
 
-                {/* Workspace Input Card */}
                 <div 
                     className={`relative group p-6 bg-[#1A1A1A]/30 border rounded-[28px] transition-all duration-300 flex items-center gap-5 cursor-text border-white/5 hover:border-white/10 ${workspace.trim() ? 'border-white/20 bg-[#1A1A1A]/50 ring-1 ring-white/5' : ''}`}
                     onClick={() => document.getElementById('onboarding-workspace')?.focus()}
@@ -163,7 +162,7 @@ const OnboardingModal: React.FC<{ onComplete: (name: string, workspace: string) 
                         <Layout className="w-6 h-6" strokeWidth={2} />
                     </div>
                     <div className="flex-1 flex flex-col">
-                        <label className="text-[12px] font-bold text-white/40 uppercase tracking-[0.05em] mb-1">Workspace Name</label>
+                        <label className="text-[12px] font-bold text-white/40 mb-1">Workspace Name</label>
                         <input 
                             id="onboarding-workspace"
                             value={workspace}
@@ -178,7 +177,6 @@ const OnboardingModal: React.FC<{ onComplete: (name: string, workspace: string) 
                 </div>
             </div>
 
-            {/* Footer Buttons */}
             <div className="flex items-center justify-center w-full max-w-lg">
                 <button 
                     onClick={() => name && workspace && onComplete(name, workspace)}
@@ -201,7 +199,7 @@ const DeleteConfirmationModal: React.FC<{ title: string, description: string, on
                 </div>
                 <div>
                     <h3 className="text-lg font-black tracking-tight text-white">Delete Permanently?</h3>
-                    <p className="text-[10px] font-bold text-red-500/80 uppercase tracking-widest">Careful</p>
+                    <p className="text-[10px] font-bold text-red-500/80 tracking-wide">Careful</p>
                 </div>
             </div>
             <p className="text-[13px] text-[var(--text-muted)] font-medium mb-10 leading-relaxed">
@@ -225,9 +223,17 @@ const DeleteConfirmationModal: React.FC<{ title: string, description: string, on
     </div>
 );
 
+type ViewType = 'chat' | 'agents' | 'settings';
+interface NavigationState {
+  view: ViewType;
+  sessionId?: string;
+}
+
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'chat' | 'agents' | 'settings'>('chat');
+  const [currentView, setCurrentView] = useState<ViewType>('chat');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [isSubSidebarVisible, setIsSubSidebarVisible] = useState(true);
   const [isMobileSessionListOpen, setIsMobileSessionListOpen] = useState(true);
   const [isTourActive, setIsTourActive] = useState(false);
   const [triggerSearch, setTriggerSearch] = useState(0);
@@ -246,7 +252,7 @@ const App: React.FC = () => {
   const [sessionModels, setSessionModels] = useStickyState<Record<string, string>>({}, 'shuper_session_models');
 
   const [currentFilter, setCurrentFilter] = useState('all');
-  const [history, setHistory] = useState<string[]>([]);
+  const [history, setHistory] = useState<NavigationState[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isWhatsNewOpen, setIsWhatsNewOpen] = useState(false);
   const [providerError, setProviderError] = useState<string | null>(null);
@@ -258,11 +264,53 @@ const App: React.FC = () => {
     return !!(process.env.API_KEY || settings.apiKeys.openRouter || settings.apiKeys.openRouterAlt || settings.apiKeys.deepSeek || settings.apiKeys.moonshot);
   }, [settings.apiKeys]);
 
+  const applyHistoryState = useCallback((state: NavigationState) => {
+    setCurrentView(state.view);
+    if (state.sessionId) {
+      setActiveSessionId(state.sessionId);
+      setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === state.sessionId ? { ...s, hasNewResponse: false } : s) : prev);
+    }
+  }, []);
+
+  const handleBack = useCallback(() => {
+      if (historyIndex > 0) {
+          const newIndex = historyIndex - 1;
+          const prevState = history[newIndex];
+          setHistoryIndex(newIndex);
+          applyHistoryState(prevState);
+      }
+  }, [historyIndex, history, applyHistoryState]);
+
+  const handleForward = useCallback(() => {
+      if (historyIndex < history.length - 1) {
+          const newIndex = historyIndex + 1;
+          const nextState = history[newIndex];
+          setHistoryIndex(newIndex);
+          applyHistoryState(nextState);
+      }
+  }, [historyIndex, history, applyHistoryState]);
+
+  const navigateTo = useCallback((view: ViewType, sessionId?: string) => {
+    const newState: NavigationState = { view, sessionId };
+    const newHistory = history.slice(0, historyIndex + 1);
+    
+    // Don't push duplicate states
+    const lastState = newHistory[newHistory.length - 1];
+    if (lastState && lastState.view === view && lastState.sessionId === sessionId) {
+      return;
+    }
+
+    newHistory.push(newState);
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+    applyHistoryState(newState);
+  }, [history, historyIndex, applyHistoryState]);
+
   useEffect(() => {
     if (currentView === 'chat' && !activeSessionId && Array.isArray(sessions) && sessions.length > 0) {
-      handleSelectSession(sessions[0].id);
+      navigateTo('chat', sessions[0].id);
     }
-  }, [sessions, activeSessionId, currentView]);
+  }, [sessions, activeSessionId, currentView, navigateTo]);
 
   useEffect(() => {
     const handleGlobalShortcuts = (e: KeyboardEvent) => {
@@ -278,13 +326,31 @@ const App: React.FC = () => {
             break;
           case 'p':
             e.preventDefault();
-            setCurrentView('settings');
+            navigateTo('settings');
             break;
           case 's':
             e.preventDefault();
-            setCurrentView('chat');
+            navigateTo('chat');
             setIsMobileSessionListOpen(true);
             setTriggerSearch(prev => prev + 1);
+            break;
+          case 'b':
+            e.preventDefault();
+            setIsSidebarVisible(prev => !prev);
+            break;
+          case '.':
+            e.preventDefault();
+            const shouldBeVisible = !isSidebarVisible || !isSubSidebarVisible;
+            setIsSidebarVisible(!shouldBeVisible);
+            setIsSubSidebarVisible(!shouldBeVisible);
+            break;
+          case 'arrowleft':
+            e.preventDefault();
+            handleBack();
+            break;
+          case 'arrowright':
+            e.preventDefault();
+            handleForward();
             break;
         }
       }
@@ -292,7 +358,7 @@ const App: React.FC = () => {
 
     window.addEventListener('keydown', handleGlobalShortcuts);
     return () => window.removeEventListener('keydown', handleGlobalShortcuts);
-  }, [sessions, currentView, activeSessionId]);
+  }, [sessions, currentView, activeSessionId, handleBack, handleForward, isSidebarVisible, isSubSidebarVisible, navigateTo]);
 
   useEffect(() => {
       if (settings.onboardingComplete) {
@@ -302,10 +368,35 @@ const App: React.FC = () => {
       }
   }, [settings.onboardingComplete]);
 
+  // Robust Theme Effect
   useEffect(() => {
-    document.body.className = settings.theme === 'light' ? 'light-mode' : '';
-    document.documentElement.style.setProperty('--accent', settings.accentColor);
-  }, [settings.theme, settings.accentColor]);
+    const applyTheme = () => {
+      let mode = settings.theme;
+      if (settings.theme === 'system') {
+        mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      
+      if (mode === 'light') {
+        document.body.classList.add('light-mode');
+      } else {
+        document.body.classList.remove('light-mode');
+      }
+      
+      document.body.setAttribute('data-theme', settings.colorTheme);
+      document.body.setAttribute('data-font', settings.fontFamily);
+      document.documentElement.style.setProperty('--accent', settings.accentColor);
+    };
+
+    applyTheme();
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleSystemThemeChange = () => {
+      if (settings.theme === 'system') applyTheme();
+    };
+
+    mediaQuery.addEventListener('change', handleSystemThemeChange);
+    return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
+  }, [settings.theme, settings.accentColor, settings.colorTheme, settings.fontFamily]);
 
   const filteredSessions = useMemo(() => {
     const sessionArr = Array.isArray(sessions) ? sessions : [];
@@ -356,37 +447,12 @@ const App: React.FC = () => {
           setIsMobileSessionListOpen(false);
           return;
       }
-      setActiveSessionId(id);
+      navigateTo('chat', id);
       setIsMobileSessionListOpen(false);
-      setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === id ? { ...s, hasNewResponse: false } : s) : prev);
-      const newHistory = history.slice(0, historyIndex + 1);
-      newHistory.push(id);
-      setHistory(newHistory);
-      setHistoryIndex(newHistory.length - 1);
 
       if (!sessionModels[id] && hasAnyKey) {
         const defaultModel = settings.visibleModels[0] || GEMINI_MODELS[0];
         setSessionModels(prev => ({ ...prev, [id]: defaultModel }));
-      }
-  };
-
-  const handleBack = () => {
-      if (historyIndex > 0) {
-          const newIndex = historyIndex - 1;
-          const prevId = history[newIndex];
-          setHistoryIndex(newIndex);
-          setActiveSessionId(prevId);
-          setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === prevId ? { ...s, hasNewResponse: false } : s) : prev);
-      }
-  };
-
-  const handleForward = () => {
-      if (historyIndex < history.length - 1) {
-          const newIndex = historyIndex + 1;
-          const nextId = history[newIndex];
-          setHistoryIndex(newIndex);
-          setActiveSessionId(nextId);
-          setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === nextId ? { ...s, hasNewResponse: false } : s) : prev);
       }
   };
 
@@ -414,8 +480,6 @@ const App: React.FC = () => {
       }
 
       handleSelectSession(newSession.id);
-      // Ensure we switch to the chat view when a new session is created
-      setCurrentView('chat');
   };
 
   const handleRegenerateTitle = async (sessionId: string) => {
@@ -455,42 +519,16 @@ const App: React.FC = () => {
     if (labelMatch) {
         const labelName = labelMatch[1].trim();
         const existingLabel = availableLabels.find(l => l.name.toLowerCase() === labelName.toLowerCase());
-        let lid = existingLabel ? existingLabel.id : null;
-        if (!lid) {
-            const newLabel = { id: Date.now().toString(), name: labelName, color: '#F5F5F5' };
-            setAvailableLabels(prev => [...prev, newLabel]);
-            lid = newLabel.id;
+        if (existingLabel) {
+            const lid = existingLabel.id;
+            setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, labelIds: s.labelIds.includes(lid) ? s.labelIds : [...s.labelIds, lid] } : s));
         }
-        setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, labelIds: s.labelIds.includes(lid!) ? s.labelIds : [...s.labelIds, lid!] } : s));
-    }
-
-    const addTaskMatch = text.match(/\[\[ADD_TASK:\s*(.*?)\]\]/);
-    if (addTaskMatch) {
-        const taskText = addTaskMatch[1].trim();
-        if (taskText) {
-            setSessions(prev => prev.map(s => (s.id === sessionId ? { ...s, tasks: [...(s.tasks || []), { id: Date.now().toString(), text: taskText, completed: false, createdAt: Date.now() }] } : s)));
-        }
-    }
-
-    const doneTaskMatch = text.match(/\[\[DONE_TASK:\s*(.*?)\]\]/);
-    if (doneTaskMatch) {
-        const taskRef = doneTaskMatch[1].trim().toLowerCase();
-        setSessions(prev => prev.map(s => (s.id === sessionId ? { ...s, tasks: (s.tasks || []).map(t => (t.text.toLowerCase().includes(taskRef) ? { ...t, completed: true } : t)) } : s)));
-    }
-
-    const removeTaskMatch = text.match(/\[\[REMOVE_TASK:\s*(.*?)\]\]/);
-    if (removeTaskMatch) {
-        const taskRef = removeTaskMatch[1].trim().toLowerCase();
-        setSessions(prev => prev.map(s => (s.id === sessionId ? { ...s, tasks: (s.tasks || []).filter(t => !t.text.toLowerCase().includes(taskRef)) } : s)));
     }
 
     return text
         .replace(/\[\[STATUS:.*?\]\]/g, '')
         .replace(/\[\[TITLE:.*?\]\]/g, '')
         .replace(/\[\[LABEL:.*?\]\]/g, '')
-        .replace(/\[\[ADD_TASK:.*?\]\]/g, '')
-        .replace(/\[\[DONE_TASK:.*?\]\]/g, '')
-        .replace(/\[\[REMOVE_TASK:.*?\]\]/g, '')
         .trim();
   };
 
@@ -588,15 +626,15 @@ const App: React.FC = () => {
         });
 
         const agent = agents.find(a => a.id === modelId);
-        let systemInstruction = settings.baseKnowledge;
+        let baseInst = settings.baseKnowledge;
         let actualModel = modelId;
 
         if (agent) {
-            systemInstruction = `${agent.systemInstruction}\n\nUser Context: ${settings.baseKnowledge}`;
+            baseInst = `${agent.systemInstruction}\n\nUser Context: ${settings.baseKnowledge}`;
             actualModel = agent.baseModel;
         }
 
-        systemInstruction = `${systemInstruction}\n\n${getSystemInstruction(settings.userName, mode)}`;
+        const systemInstruction = `${baseInst}\n\n${getSystemInstruction(settings.userName, mode, availableLabels)}`;
         
         const onStreamUpdate = (content: string, thoughtProcess?: string) => {
             setSessionMessages(prev => {
@@ -666,7 +704,6 @@ const App: React.FC = () => {
 
   const updateSessionStatus = (id: string, s: SessionStatus) => setSessions(prev => Array.isArray(prev) ? prev.map(sess => sess.id === id ? { ...sess, status: s } : sess) : prev);
   const updateSessionMode = (id: string, m: SessionMode) => setSessions(prev => Array.isArray(prev) ? prev.map(sess => sess.id === id ? { ...sess, mode: m } : sess) : prev);
-  const updateSessionTasks = (id: string, tasks: Task[]) => setSessions(prev => prev.map(s => s.id === id ? { ...s, tasks } : s));
   const updateSessionLabels = (id: string, lid: string) => setSessions(prev => Array.isArray(prev) ? prev.map(s => {
       if (s.id !== id) return s;
       const hasLabel = s.labelIds.includes(lid);
@@ -677,7 +714,6 @@ const App: React.FC = () => {
   const deleteSession = (id: string) => {
       const messages = sessionMessages[id] || [];
       if (messages.length === 0) {
-          // Immediately delete without confirmation if chat is empty
           setSessions(prev => Array.isArray(prev) ? prev.filter(s => s.id !== id) : prev);
           if (activeSessionId === id) {
               const remaining = sessions.filter(s => s.id !== id);
@@ -733,9 +769,8 @@ const App: React.FC = () => {
                 setIsTourActive(false);
             }}
             onNewSession={() => {
-                // Ensure we don't duplicate sessions if one already exists
                 if (sessions.length === 0) handleNewSession();
-                setCurrentView('chat');
+                navigateTo('chat');
             }}
           />
       )}
@@ -753,7 +788,14 @@ const App: React.FC = () => {
           <div className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 animate-in fade-in duration-300" onClick={() => setIsMobileSidebarOpen(false)} />
       )}
 
-      <div className={`fixed md:relative inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+      {/* FIXED SIDEBAR: Smooth sliding width animation */}
+      <div className={`
+          fixed md:relative inset-y-0 left-0 z-50 
+          transform transition-all duration-500 ease-in-out 
+          ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
+          ${isSidebarVisible ? 'md:translate-x-0 md:w-[260px] md:opacity-100 md:visible' : 'md:-translate-x-full md:w-0 md:opacity-0 md:invisible'}
+          overflow-hidden h-full bg-[var(--bg-primary)]
+      `}>
           <SidebarNavigation 
             currentFilter={currentFilter} 
             onSetFilter={(f) => {
@@ -773,7 +815,7 @@ const App: React.FC = () => {
             availableLabels={availableLabels}
             currentView={currentView}
             onChangeView={(v) => {
-                setCurrentView(v);
+                navigateTo(v);
                 setIsMobileSidebarOpen(false);
             }}
             workspaceName={settings.workspaceName}
@@ -785,12 +827,19 @@ const App: React.FC = () => {
           />
       </div>
 
-      <WhatsNewModal isOpen={isWhatsNewOpen} onClose={() => setIsWhatsNewOpen(false)} />
+      {isWhatsNewOpen && <WhatsNewModal isOpen={isWhatsNewOpen} onClose={() => setIsWhatsNewOpen(false)} />}
 
-      <div className="flex-1 flex overflow-hidden relative">
+      {/* Content wrapper */}
+      <div className="flex-1 flex overflow-hidden relative p-0 md:p-2 md:pl-0 md:gap-2 transition-all duration-500">
           {currentView === 'chat' && (
-              <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300">
-                <div className={`w-full md:w-[300px] flex-shrink-0 transition-all duration-300 ${isMobileSessionListOpen ? 'block' : 'hidden'} md:block`}>
+              <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300 gap-0 md:gap-2">
+                <div className={`
+                    w-full md:w-[300px] flex-shrink-0 
+                    transition-all duration-500 ease-in-out
+                    ${isMobileSessionListOpen ? 'block' : 'hidden'} 
+                    ${isSubSidebarVisible ? 'md:translate-x-0 md:w-[300px] md:opacity-100 md:visible' : 'md:-translate-x-full md:w-0 md:opacity-0 md:invisible'}
+                    md:block rounded-none md:rounded-xl overflow-hidden island-card h-full
+                `}>
                     <SessionList 
                         sessions={filteredSessions} 
                         activeSessionId={activeSessionId || ''} 
@@ -811,7 +860,7 @@ const App: React.FC = () => {
                     />
                 </div>
                 
-                <div className={`flex-1 transition-all duration-300 h-full ${!isMobileSessionListOpen || !activeSessionId ? 'block' : 'hidden md:block'}`}>
+                <div className={`flex-1 transition-all duration-300 h-full ${!isMobileSessionListOpen || !activeSessionId ? 'block' : 'hidden md:block'} rounded-none md:rounded-xl overflow-hidden island-card h-full`}>
                     {activeSession ? (
                         <ChatInterface 
                             key={activeSession.id}
@@ -822,7 +871,6 @@ const App: React.FC = () => {
                             isLoading={activeLoading}
                             onUpdateStatus={(status) => updateSessionStatus(activeSessionId!, status)}
                             onUpdateMode={(mode) => updateSessionMode(activeSessionId!, mode)}
-                            onUpdateTasks={(tasks) => updateSessionTasks(activeSessionId!, tasks)}
                             availableLabels={availableLabels}
                             onUpdateLabels={(labelId) => updateSessionLabels(activeSessionId!, labelId)}
                             onCreateLabel={(l) => setAvailableLabels(prev => [...prev, l])}
@@ -830,7 +878,7 @@ const App: React.FC = () => {
                             onRenameSession={(title) => renameSession(activeSessionId!, title)}
                             onRegenerateTitle={handleRegenerateTitle}
                             onToggleFlag={() => toggleSessionFlag(activeSessionId!)}
-                            onChangeView={setCurrentView}
+                            onChangeView={(v) => navigateTo(v)}
                             onNewSession={handleNewSession}
                             visibleModels={settings.visibleModels}
                             agents={agents}
@@ -864,7 +912,7 @@ const App: React.FC = () => {
           )}
 
           {currentView === 'settings' && (
-              <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300">
+              <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300 rounded-none md:rounded-xl overflow-hidden island-card h-full">
                   <SettingsView 
                     settings={settings} 
                     onUpdateSettings={handleUpdateSettings}
@@ -877,7 +925,7 @@ const App: React.FC = () => {
           )}
 
           {currentView === 'agents' && (
-              <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300">
+              <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300 rounded-none md:rounded-xl overflow-hidden island-card h-full">
                   <AgentsView 
                     agents={agents}
                     onCreateAgent={(a) => setAgents(prev => [...prev, a])}
