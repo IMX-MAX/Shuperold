@@ -197,6 +197,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
         <div className="flex items-center justify-between px-2.5 pt-2.5 pb-0.5 bg-transparent">
             <div className="relative">
                 <button 
+                    id="tour-mode-selector"
                     onClick={() => hasAnyKey && setIsModeMenuOpen(!isModeMenuOpen)}
                     disabled={!hasAnyKey}
                     className="flex items-center gap-1.5 text-[var(--text-muted)] hover:text-[var(--text-main)] text-[10px] md:text-[11px] font-bold uppercase tracking-wider bg-[var(--bg-elevated)] px-2 py-1 rounded-lg border border-[var(--border)] transition-all hover:border-[var(--text-dim)] disabled:cursor-not-allowed"
@@ -346,6 +347,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
             <div className="flex items-center gap-3">
                 <div className="relative">
                     <button 
+                        id="tour-model-selector"
                         onClick={() => hasAnyKey && setIsModelMenuOpen(!isModelMenuOpen)}
                         className={`flex items-center gap-1.5 transition-all px-2.5 py-1.5 rounded-xl border font-bold uppercase tracking-wider text-[10px] md:text-[11px] ${!hasAnyKey ? 'bg-red-500/10 text-red-400 border-red-500/20' : (!isCurrentModelValid && input.trim() ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 animate-pulse' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] border-transparent hover:bg-[var(--bg-elevated)] hover:border-[var(--border)]')}`}
                     >

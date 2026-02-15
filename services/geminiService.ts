@@ -109,12 +109,8 @@ export const sendMessageToGemini = async (
     // @google/genai guidelines: Thinking Config is only available for Gemini 3 and 2.5 series models.
     const isThinkingSupported = actualModel.includes('gemini-3') || actualModel.includes('gemini-2.5');
 
-    if (isThinkingSupported) {
-        if (mode === 'execute') {
-            config.thinkingConfig = { thinkingBudget: 32768 }; 
-        } else if (useThinking) {
-            config.thinkingConfig = { thinkingBudget: 16000 };
-        }
+    if (isThinkingSupported && mode === 'execute') {
+        config.thinkingConfig = { thinkingBudget: 32768 }; 
     }
 
     const responseStream = await ai.models.generateContentStream({
@@ -192,7 +188,8 @@ const sendMessageToOpenAICompatible = async (
             body: JSON.stringify({
                 model: trimmedModel,
                 messages: messages,
-                stream: true
+                stream: true,
+                ...(useThinking && { reasoning_effort: "high" })
             }),
             signal
         });

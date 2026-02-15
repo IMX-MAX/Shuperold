@@ -192,23 +192,28 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const StatusIcon = STATUS_CONFIG[session.status].icon;
 
   // Helper to split model response into plan vs main content
-  const processModelOutput = (content: string) => {
+  const processModelOutput = (content: string, mode: SessionMode) => {
     const lines = content.split('\n');
     const planSteps: string[] = [];
     const mainLines: string[] = [];
-    let isParsingPlan = true;
-
-    for (let line of lines) {
-      const trimmed = line.trim();
-      if (isParsingPlan && trimmed.startsWith('-')) {
-        planSteps.push(trimmed.replace(/^-/, '').trim());
-      } else if (trimmed === '' && isParsingPlan) {
-        // Just skip initial empty lines if still parsing plan
-        continue;
-      } else {
-        isParsingPlan = false;
-        mainLines.push(line);
-      }
+    
+    // Only parse plan steps if in Execute mode
+    if (mode === 'execute') {
+        let isParsingPlan = true;
+        for (let line of lines) {
+          const trimmed = line.trim();
+          if (isParsingPlan && trimmed.startsWith('-')) {
+            planSteps.push(trimmed.replace(/^-/, '').trim());
+          } else if (trimmed === '' && isParsingPlan) {
+            continue;
+          } else {
+            isParsingPlan = false;
+            mainLines.push(line);
+          }
+        }
+    } else {
+        // Explore mode: Everything is main content
+        mainLines.push(...lines);
     }
 
     return { planSteps, mainContent: mainLines.join('\n').trim() };
@@ -356,8 +361,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 {messages.map((msg, index) => {
                     const isLast = index === messages.length - 1;
                     const isGenerating = isLast && isLoading && msg.role === 'model';
-                    const { planSteps, mainContent } = processModelOutput(msg.content);
-                    const showStandaloneThinking = isGenerating && planSteps.length === 0 && !mainContent;
+                    const { planSteps, mainContent } = processModelOutput(msg.content, session.mode || 'explore');
+                    const showStandaloneThinking = isGenerating && planSteps.length === 0 && !mainContent && session.mode === 'execute';
 
                     return (
                     <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-message`}>
@@ -411,8 +416,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                     </div>
                                 )}
                                 
-                                {/* Dynamic Planning Block */}
-                                {(planSteps.length > 0 || (isGenerating && session.mode === 'execute')) && (
+                                {/* Dynamic Planning Block - Execute Mode Only */}
+                                {session.mode === 'execute' && (planSteps.length > 0 || isGenerating) && (
                                     <ThinkingBlock steps={planSteps} isGenerating={isGenerating} />
                                 )}
                                 

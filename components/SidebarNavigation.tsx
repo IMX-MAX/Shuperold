@@ -64,7 +64,7 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
   ];
 
   return (
-    <div className="w-[280px] md:w-[260px] flex-shrink-0 bg-[var(--bg-secondary)]/95 backdrop-blur-xl border-r border-[var(--border)] flex flex-col h-full text-[var(--text-muted)] text-sm z-20 transition-all duration-300">
+    <div id="tour-sidebar" className="w-[280px] md:w-[260px] flex-shrink-0 bg-[var(--bg-secondary)]/95 backdrop-blur-xl border-r border-[var(--border)] flex flex-col h-full text-[var(--text-muted)] text-sm z-20 transition-all duration-300">
       {/* Top Header / Logo / History */}
       <div className="h-14 flex items-center px-4 justify-between">
         <div 
@@ -104,6 +104,7 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
 
       <div className="px-3 pb-4 overflow-y-auto custom-scrollbar">
         <button 
+            id="tour-new-chat"
             onClick={() => {
                 onChangeView('chat');
                 onNewSession();
@@ -260,6 +261,7 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
 
         <nav className="space-y-[1px]">
           <div 
+             id="tour-settings"
              onClick={() => onChangeView('settings')}
              className={`flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer transition-all duration-200 ${
                 currentView === 'settings' 

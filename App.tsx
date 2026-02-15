@@ -6,6 +6,7 @@ import { ChatInterface } from './components/ChatInterface';
 import { SettingsView } from './components/SettingsView';
 import { AgentsView } from './components/AgentsView';
 import { WhatsNewModal } from './components/WhatsNewModal';
+import { TourOverlay } from './components/TourOverlay';
 import { 
     Session, 
     Message, 
@@ -210,6 +211,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'chat' | 'agents' | 'settings'>('chat');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobileSessionListOpen, setIsMobileSessionListOpen] = useState(true);
+  const [isTourActive, setIsTourActive] = useState(false);
   
   // Logo glow state
   const [logoClicks, setLogoClicks] = useState(0);
@@ -668,10 +670,24 @@ const App: React.FC = () => {
         className="flex h-screen w-full bg-[var(--bg-primary)] overflow-hidden text-sm font-inter text-[var(--text-main)] relative"
         onContextMenu={handleGlobalContextMenu}
     >
-      {!settings.onboardingComplete && (
+      {!settings.onboardingComplete && !isTourActive && (
           <OnboardingModal onComplete={(name, workspace) => {
-              setSettings({ ...settings, userName: name, workspaceName: workspace, onboardingComplete: true });
+              setSettings({ ...settings, userName: name, workspaceName: workspace });
+              setIsTourActive(true);
           }} />
+      )}
+
+      {isTourActive && (
+          <TourOverlay 
+            onComplete={() => {
+                setSettings({ ...settings, onboardingComplete: true });
+                setIsTourActive(false);
+            }} 
+            onSkip={() => {
+                setSettings({ ...settings, onboardingComplete: true });
+                setIsTourActive(false);
+            }}
+          />
       )}
 
       {providerError && (
