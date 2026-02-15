@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Paperclip, 
@@ -178,7 +177,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
             <div className="relative">
                 <button 
                   onClick={() => setIsModeMenuOpen(!isModeMenuOpen)}
-                  className="flex items-center gap-2 bg-[#1A1A1A] hover:bg-[#222] px-3 py-1.5 rounded-xl border border-white/5 text-[11px] font-black text-[var(--text-muted)] uppercase tracking-widest transition-all active:scale-95 group"
+                  className="flex items-center gap-2 bg-[var(--bg-elevated)] hover:bg-[var(--bg-tertiary)] px-3 py-1.5 rounded-xl border border-[var(--border)] text-[11px] font-black text-[var(--text-muted)] uppercase tracking-widest transition-all active:scale-95 group"
                 >
                   {currentMode === 'explore' ? <Compass className="w-3 h-3 group-hover:rotate-12 transition-transform" /> : <RefreshCcw className="w-3 h-3 group-hover:rotate-180 transition-transform" />}
                   <span>{currentMode}</span>
@@ -187,17 +186,17 @@ export const InputArea: React.FC<InputAreaProps> = ({
                 {isModeMenuOpen && (
                     <>
                         <div className="fixed inset-0 z-40" onClick={() => setIsModeMenuOpen(false)} />
-                        <div className="absolute bottom-full left-0 mb-3 w-44 bg-[#141414] border border-white/5 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] py-2 z-50 overflow-hidden animate-in fade-in zoom-in-95 origin-bottom-left backdrop-blur-xl">
+                        <div className="absolute bottom-full left-0 mb-3 w-44 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] py-2 z-50 overflow-hidden animate-in fade-in zoom-in-95 origin-bottom-left backdrop-blur-xl">
                             <div 
                               onClick={() => { onUpdateMode('explore'); setIsModeMenuOpen(false); }} 
-                              className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${currentMode === 'explore' ? 'bg-white/5 text-white' : 'text-[#555] hover:text-white hover:bg-white/5'}`}
+                              className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${currentMode === 'explore' ? 'bg-[var(--bg-elevated)] text-[var(--text-main)]' : 'text-[var(--text-dim)] hover:text-[var(--text-main)] hover:bg-[var(--bg-elevated)]'}`}
                             >
                                 <span className="text-[12px] font-black uppercase tracking-widest">Explore</span>
                                 {currentMode === 'explore' && <Compass className="w-3.5 h-3.5" />}
                             </div>
                             <div 
                               onClick={() => { onUpdateMode('execute'); setIsModeMenuOpen(false); }} 
-                              className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${currentMode === 'execute' ? 'bg-white/5 text-white' : 'text-[#555] hover:text-white hover:bg-white/5'}`}
+                              className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${currentMode === 'execute' ? 'bg-[var(--bg-elevated)] text-[var(--text-main)]' : 'text-[var(--text-dim)] hover:text-[var(--text-main)] hover:bg-[var(--bg-elevated)]'}`}
                             >
                                 <span className="text-[12px] font-black uppercase tracking-widest">Execute</span>
                                 {currentMode === 'execute' && <RefreshCcw className="w-3.5 h-3.5" />}
@@ -208,7 +207,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
             </div>
             <button 
                 onClick={() => setIsStatusMenuOpen(true)}
-                className="p-1 rounded-full hover:bg-white/5 transition-all group active:scale-90"
+                className="p-1 rounded-full hover:bg-[var(--bg-elevated)] transition-all group active:scale-90"
             >
                 <StatusIcon className={`w-4 h-4 ${STATUS_CONFIG[currentStatus].color} opacity-60 group-hover:opacity-100 transition-opacity`} />
             </button>
@@ -219,10 +218,9 @@ export const InputArea: React.FC<InputAreaProps> = ({
             <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 px-1">
                 {attachments.map((att, i) => (
                     <div key={i} className="relative flex-shrink-0">
-                        <div className="w-12 h-12 rounded-xl border border-white/5 overflow-hidden bg-[#1A1A1A] flex items-center justify-center group/att">
+                        <div className="w-12 h-12 rounded-xl border border-[var(--border)] overflow-hidden bg-[var(--bg-secondary)] flex items-center justify-center group/att">
                             {att.type.startsWith('image/') ? <img src={att.data} alt={att.name} className="w-full h-full object-cover transition-transform duration-500 group-hover/att:scale-110" /> : <FileIcon className="w-5 h-5 text-[var(--text-dim)]" />}
                         </div>
-                        {/* Use the correct index variable 'i' from map instead of 'index' */}
                         <button onClick={() => removeAttachment(i)} className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-1 shadow-xl hover:bg-red-600 transition-colors"><X className="w-2.5 h-2.5" /></button>
                     </div>
                 ))}
@@ -242,13 +240,13 @@ export const InputArea: React.FC<InputAreaProps> = ({
         <div className="flex items-center justify-between mt-2 px-1">
             <div className="flex items-center gap-3">
                 <input type="file" multiple ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
-                <button onClick={() => fileInputRef.current?.click()} className="p-1.5 rounded-xl text-[var(--text-dim)] hover:text-white hover:bg-white/5 transition-all"><Paperclip className="w-5 h-5" /></button>
+                <button onClick={() => fileInputRef.current?.click()} className="p-1.5 rounded-xl text-[var(--text-dim)] hover:text-[var(--text-main)] hover:bg-[var(--bg-elevated)] transition-all"><Paperclip className="w-5 h-5" /></button>
             </div>
             <div className="flex items-center gap-4">
                 <div className="relative">
                     <button 
                         onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                        className="text-[11px] font-black text-[var(--text-dim)] hover:text-[var(--text-muted)] uppercase tracking-[0.15em] flex items-center gap-2 transition-all px-2 py-1 rounded-lg hover:bg-white/5"
+                        className="text-[11px] font-black text-[var(--text-dim)] hover:text-[var(--text-main)] uppercase tracking-[0.15em] flex items-center gap-2 transition-all px-2 py-1 rounded-lg hover:bg-[var(--bg-elevated)]"
                     >
                         <span>{getModelNameDisplay()}</span>
                         <ChevronDown className="w-3 h-3 opacity-30" />
@@ -258,7 +256,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
                 <button 
                     onClick={handleSend} 
                     disabled={(!input.trim() && attachments.length === 0 && !isLoading)}
-                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${(!input.trim() && !isLoading) ? 'bg-[#333]/50 text-[#555]' : 'bg-white text-black hover:scale-110 shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-90'}`}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${(!input.trim() && !isLoading) ? 'bg-[var(--bg-elevated)] text-[var(--text-dim)]' : 'bg-[var(--accent)] text-[var(--bg-primary)] hover:scale-110 shadow-lg active:scale-90'}`}
                 >
                     {isLoading ? <div className="w-2.5 h-2.5 bg-current rounded-[1px] animate-pulse" /> : <ArrowUp className="w-4.5 h-4.5" strokeWidth={3} />}
                 </button>
