@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shuper Workspace</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        /* Default Dark Theme */
+        --bg-primary: #121212;
+        --bg-secondary: #171717;
+        --bg-tertiary: #1C1C1C;
+        --bg-elevated: #262626;
+        --border: #333333;
+        --text-main: #E5E5E5;
+        --text-muted: #A1A1A1;
+        --text-dim: #525252;
+        --accent: #3B82F6;
+        --accent-dim: rgba(59, 130, 246, 0.1);
+      }
+
+      body.light-mode {
+        --bg-primary: #FFFFFF;
+        --bg-secondary: #F9F9F9;
+        --bg-tertiary: #F0F0F0;
+        --bg-elevated: #E5E5E5;
+        --border: #E0E0E0;
+        --text-main: #171717;
+        --text-muted: #525252;
+        --text-dim: #A1A1A1;
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-main);
+        transition: background-color 0.3s, color 0.3s;
+      }
+      
+      /* Tint overlay for "Accent Tint" effect */
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: var(--accent);
+        opacity: 0.02;
+        pointer-events: none;
+        z-index: 9999;
+      }
+
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--bg-elevated);
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--text-dim);
+      }
+      
+      .markdown-body p { margin-bottom: 0.75em; }
+      .markdown-body ul { list-style-type: disc; margin-left: 1.5em; margin-bottom: 0.75em; }
+      .markdown-body ol { list-style-type: decimal; margin-left: 1.5em; margin-bottom: 0.75em; }
+      /* Pre styles are now handled by syntax highlighter component, but fallback is good */
+      .markdown-body pre { margin-bottom: 0.75em; border-radius: 0.5em; overflow: hidden; }
+      .markdown-body code { background: var(--bg-elevated); padding: 0.2em 0.4em; border-radius: 0.25em; font-size: 0.9em; color: var(--accent); }
+      .markdown-body pre code { background: transparent; padding: 0; color: inherit; }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.564.0",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "@google/genai": "https://esm.sh/@google/genai@^1.41.0",
+    "react-markdown": "https://esm.sh/react-markdown@9",
+    "react-syntax-highlighter": "https://esm.sh/react-syntax-highlighter@15.5.0",
+    "react-syntax-highlighter/dist/esm/styles/prism": "https://esm.sh/react-syntax-highlighter@15.5.0/dist/esm/styles/prism",
+    "react-syntax-highlighter/": "https://esm.sh/react-syntax-highlighter@^16.1.0/"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
