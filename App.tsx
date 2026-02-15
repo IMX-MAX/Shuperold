@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Inbox, Layout, User, Rocket, ShieldAlert, AlertTriangle, Trash2, Wrench, Menu, PlusCircle, Command, ShieldCheck, Loader2, ChevronRight, X, Check } from 'lucide-react';
 import { SidebarNavigation } from './components/SidebarNavigation';
@@ -80,7 +79,7 @@ AVAILABLE LABELS (TAGS):
 ${availableLabels.length > 0 ? availableLabels.map(l => `- ${l.name}`).join('\n') : 'No labels available.'}
 
 CAPABILITIES:
-- [[TITLE: New Title]] - Change the chat name.
+- [[TITLE: New Title]] - Change the chat name. ONLY use this if explicitly asked to rename the chat. DO NOT rename chats automatically.
 - [[STATUS: backlog | todo | needs_review | done | cancelled | archive]] - Change chat status.
 - [[LABEL: Label Name]] - Add a tag. IMPORTANT: ONLY use existing labels listed above. DO NOT create or invent new ones. If a relevant label is not in the list, do not use the LABEL command.
 `;
@@ -570,9 +569,6 @@ const App: React.FC = () => {
     if (!modelId) return;
 
     // Strict rename logic: Only rename if it is explicitly "New Chat" and this is the first interaction.
-    // We check via functional update to be safe, but here we can check the current sessions state.
-    // If sessions state is stale in closure, we rely on the functional update in setSessions.
-    // For the initial rename (text slice), we do it ONLY if messages are empty to avoid aggressive renaming.
     const currentSessionMessages = sessionMessages[currentSessionId] || [];
     const isFirstMessage = currentSessionMessages.length === 0;
 
