@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Paperclip, 
   ArrowUp, 
@@ -14,7 +14,7 @@ import {
   AlertCircle,
   AlertTriangle
 } from 'lucide-react';
-import { Attachment, Agent, Label, SessionStatus, SessionMode } from '../types';
+import { Attachment, Agent, Label, SessionStatus, SessionMode, GEMINI_MODELS, OPENROUTER_FREE_MODELS, DEEPSEEK_MODELS, MOONSHOT_MODELS } from '../types';
 import { ModelSelector } from './ModelSelector';
 import { StatusSelector, STATUS_CONFIG } from './StatusSelector';
 
@@ -80,6 +80,33 @@ export const InputArea: React.FC<InputAreaProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Helper to check if the current selected model/agent is actually usable with existing keys
+  const isCurrentModelValid = useMemo(() => {
+    if (!currentModel) return false;
+    
+    const agent = agents.find(a => a.id === currentModel);
+    const targetModelId = agent ? agent.baseModel : currentModel;
+
+    // Check Gemini (always assume process.env.API_KEY is handled if provided, but we verify here)
+    if (GEMINI_MODELS.includes(targetModelId)) {
+        return !!process.env.API_KEY;
+    }
+    // Check OpenRouter
+    if (OPENROUTER_FREE_MODELS.includes(targetModelId) || targetModelId.includes(':free')) {
+        return !!hasOpenRouterKey;
+    }
+    // Check DeepSeek
+    if (DEEPSEEK_MODELS.includes(targetModelId)) {
+        return !!hasDeepSeekKey;
+    }
+    // Check Moonshot
+    if (MOONSHOT_MODELS.includes(targetModelId)) {
+        return !!hasMoonshotKey;
+    }
+
+    return false;
+  }, [currentModel, agents, hasOpenRouterKey, hasDeepSeekKey, hasMoonshotKey]);
+
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -90,7 +117,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!hasAnyKey) return;
     if (e.key === 'Enter' && !e.shiftKey) {
-        if (!currentModel && input.trim()) {
+        if (!isCurrentModelValid && input.trim()) {
             e.preventDefault();
             setIsModelMenuOpen(true);
             return;
@@ -111,7 +138,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
           onStop?.();
           return;
       }
-      if (!currentModel) {
+      if (!isCurrentModelValid) {
           setIsModelMenuOpen(true);
           return;
       }
@@ -157,7 +184,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
 
   const getModelNameDisplay = () => {
     if (!hasAnyKey) return "Key Required";
-    if (!currentModel) return "Select AI";
+    if (!isCurrentModelValid) return "Select AI";
     if (activeAgent) return activeAgent.name;
     const parts = currentModel.split('/');
     return parts[parts.length - 1].split(':')[0];
@@ -292,7 +319,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={!hasAnyKey}
-          placeholder={!hasAnyKey ? "Add a key to unlock..." : (isLoading ? "Synthesizing response..." : (!currentModel ? "Select a model..." : "Ask Shuper..."))}
+          placeholder={!hasAnyKey ? "Add a key to unlock..." : (isLoading ? "Synthesizing response..." : (!isCurrentModelValid ? "Select a model..." : "Ask Shuper..."))}
           className="w-full bg-transparent border-0 text-[var(--text-main)] placeholder-[var(--text-dim)] px-4 py-3 md:py-2 focus:ring-0 focus:outline-none resize-none min-h-[44px] max-h-[220px] overflow-y-auto custom-scrollbar text-[15px] font-medium disabled:cursor-not-allowed"
           rows={1}
         />
@@ -320,9 +347,9 @@ export const InputArea: React.FC<InputAreaProps> = ({
                 <div className="relative">
                     <button 
                         onClick={() => hasAnyKey && setIsModelMenuOpen(!isModelMenuOpen)}
-                        className={`flex items-center gap-1.5 transition-all px-2.5 py-1.5 rounded-xl border font-bold uppercase tracking-wider text-[10px] md:text-[11px] ${!hasAnyKey ? 'bg-red-500/10 text-red-400 border-red-500/20' : (!currentModel && input.trim() ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 animate-pulse' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] border-transparent hover:bg-[var(--bg-elevated)] hover:border-[var(--border)]')}`}
+                        className={`flex items-center gap-1.5 transition-all px-2.5 py-1.5 rounded-xl border font-bold uppercase tracking-wider text-[10px] md:text-[11px] ${!hasAnyKey ? 'bg-red-500/10 text-red-400 border-red-500/20' : (!isCurrentModelValid && input.trim() ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 animate-pulse' : 'text-[var(--text-muted)] hover:text-[var(--text-main)] border-transparent hover:bg-[var(--bg-elevated)] hover:border-[var(--border)]')}`}
                     >
-                        {!hasAnyKey ? <AlertTriangle className="w-3.5 h-3.5" /> : (!currentModel && input.trim() && <AlertCircle className="w-3.5 h-3.5" />)}
+                        {!hasAnyKey ? <AlertTriangle className="w-3.5 h-3.5" /> : (!isCurrentModelValid && input.trim() && <AlertCircle className="w-3.5 h-3.5" />)}
                         <span className="truncate max-w-[90px] md:max-w-none uppercase">
                             {getModelNameDisplay()}
                         </span>
@@ -345,9 +372,9 @@ export const InputArea: React.FC<InputAreaProps> = ({
 
                 <button 
                     onClick={handleSend}
-                    disabled={!hasAnyKey || ((!input.trim() && attachments.length === 0 && !isLoading) || (!currentModel && !isLoading))}
+                    disabled={!hasAnyKey || ((!input.trim() && attachments.length === 0 && !isLoading) || (!isCurrentModelValid && !isLoading))}
                     className={`w-9 h-9 md:w-8 md:h-8 rounded-xl transition-all duration-300 flex items-center justify-center ${
-                        (!hasAnyKey || ((!input.trim() && attachments.length === 0 && !isLoading) || (!currentModel && !isLoading)))
+                        (!hasAnyKey || ((!input.trim() && attachments.length === 0 && !isLoading) || (!isCurrentModelValid && !isLoading)))
                             ? 'bg-[var(--bg-elevated)] text-[var(--text-dim)] cursor-not-allowed opacity-50'
                             : isLoading 
                                 ? 'bg-[var(--text-main)] text-[var(--bg-primary)] hover:scale-105 shadow-xl' 
