@@ -103,6 +103,8 @@ export const SessionList: React.FC<SessionListProps> = ({
           onToggleLabel(sessionId, payload as string);
       } else if (action === 'toggle_flag') {
           onToggleFlag(sessionId);
+      } else if (action === 'new_session') {
+          onNewSession();
       }
   };
 
