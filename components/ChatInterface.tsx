@@ -402,7 +402,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[var(--bg-tertiary)] via-[var(--bg-tertiary)] to-transparent z-20">
            <InputArea 
-                onSendMessage={onSendMessage} 
+                onSend={onSendMessage} 
                 isLoading={isLoading} 
                 currentStatus={session.status}
                 currentLabelIds={session.labelIds}
