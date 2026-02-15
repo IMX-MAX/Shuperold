@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Inbox } from 'lucide-react';
 import { SidebarNavigation } from './components/SidebarNavigation';
 import { SessionList } from './components/SessionList';
@@ -6,7 +6,20 @@ import { ChatInterface } from './components/ChatInterface';
 import { SettingsView } from './components/SettingsView';
 import { AgentsView } from './components/AgentsView';
 import { WhatsNewModal } from './components/WhatsNewModal';
-import { Session, Message, SessionStatus, Label, UserSettings, Agent, Attachment, OPENROUTER_FREE_MODELS, GEMINI_MODELS, SessionMode } from './types';
+import { 
+    Session, 
+    Message, 
+    SessionStatus, 
+    Label, 
+    UserSettings, 
+    Agent, 
+    Attachment, 
+    OPENROUTER_FREE_MODELS, 
+    GEMINI_MODELS, 
+    DEEPSEEK_MODELS, 
+    MOONSHOT_MODELS, 
+    SessionMode 
+} from './types';
 import { sendMessageToGemini, generateSessionTitle } from './services/geminiService';
 
 const DEFAULT_LABELS: Label[] = [
@@ -21,8 +34,7 @@ const DEFAULT_SETTINGS: UserSettings = {
     theme: 'dark',
     accentColor: '#3B82F6',
     workspaceName: 'shuper - your favorite AI executor',
-    // Updated default models to valid ones
-    visibleModels: ['gemini-3-flash-preview', 'gemini-3-pro-preview'],
+    visibleModels: [...GEMINI_MODELS], // Enable all Gemini models by default since env key is assumed
     userName: 'Nathan',
     timezone: 'UTC',
     language: 'English',
@@ -52,12 +64,20 @@ Usage Rule:
 - Do not output the tags if you are just answering a question normally. Only use them if the user asks you to update the session.
 `;
 
-// Helper for local storage
+// Helper for local storage persistence
 const useStickyState = <T,>(defaultValue: T, key: string): [T, React.Dispatch<React.SetStateAction<T>>] => {
   const [value, setValue] = useState<T>(() => {
     try {
       const stickyValue = window.localStorage.getItem(key);
-      return stickyValue !== null ? JSON.parse(stickyValue) : defaultValue;
+      if (stickyValue !== null) {
+          const parsed = JSON.parse(stickyValue);
+          // Merge with default to ensure new fields are present
+          if (typeof defaultValue === 'object' && defaultValue !== null) {
+              return { ...defaultValue, ...parsed };
+          }
+          return parsed;
+      }
+      return defaultValue;
     } catch (e) {
       return defaultValue;
     }
@@ -79,12 +99,10 @@ const App: React.FC = () => {
   const [agents, setAgents] = useStickyState<Agent[]>([], 'shuper_agents');
   const [sessions, setSessions] = useStickyState<Session[]>([], 'shuper_sessions');
   const [sessionMessages, setSessionMessages] = useStickyState<Record<string, Message[]>>({}, 'shuper_messages');
-  // Note: We don't persist activeSessionId to prevent sticking to deleted sessions easily, but we could.
+  
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-
   const [sessionLoading, setSessionLoading] = useState<Record<string, boolean>>({});
-  // Persist model selection per session? Or global? Let's keep it transient or persist simple.
-  const [sessionModels, setSessionModels] = useState<Record<string, string>>({});
+  const [sessionModels, setSessionModels] = useStickyState<Record<string, string>>({}, 'shuper_session_models');
 
   const [currentFilter, setCurrentFilter] = useState('all');
   const [history, setHistory] = useState<string[]>([]);
@@ -94,8 +112,7 @@ const App: React.FC = () => {
   // Initialize active session if exists
   useEffect(() => {
       if (sessions.length > 0 && !activeSessionId) {
-          // If we have sessions but none active, maybe load the first one?
-          // Or don't, just let user select.
+          setActiveSessionId(sessions[0].id);
       } else if (sessions.length === 0 && currentView === 'chat') {
           handleNewSession();
       }
@@ -132,6 +149,33 @@ const App: React.FC = () => {
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const activeMessages = activeSessionId ? (sessionMessages[activeSessionId] || []) : [];
   const activeLoading = activeSessionId ? (sessionLoading[activeSessionId] || false) : false;
+
+  const handleUpdateSettings = useCallback((newSettings: UserSettings) => {
+    // Check for newly added API keys and enable their models
+    const updatedVisibleModels = new Set(newSettings.visibleModels);
+    
+    // Auto-enable Gemini models if key is provided (or changed from empty)
+    if (newSettings.apiKeys.gemini && !settings.apiKeys.gemini) {
+        GEMINI_MODELS.forEach(m => updatedVisibleModels.add(m));
+    }
+    // Auto-enable OpenRouter models
+    if (newSettings.apiKeys.openRouter && !settings.apiKeys.openRouter) {
+        OPENROUTER_FREE_MODELS.forEach(m => updatedVisibleModels.add(m));
+    }
+    // Auto-enable DeepSeek models
+    if (newSettings.apiKeys.deepSeek && !settings.apiKeys.deepSeek) {
+        DEEPSEEK_MODELS.forEach(m => updatedVisibleModels.add(m));
+    }
+    // Auto-enable Moonshot models
+    if (newSettings.apiKeys.moonshot && !settings.apiKeys.moonshot) {
+        MOONSHOT_MODELS.forEach(m => updatedVisibleModels.add(m));
+    }
+
+    setSettings({
+        ...newSettings,
+        visibleModels: Array.from(updatedVisibleModels)
+    });
+  }, [settings, setSettings]);
 
   const handleSelectSession = (id: string) => {
       if (id === activeSessionId) return;
@@ -178,7 +222,6 @@ const App: React.FC = () => {
       };
       setSessions(prev => [newSession, ...prev]);
       setSessionMessages(prev => ({ ...prev, [newSession.id]: [] }));
-      // Default to gemini-3-flash-preview
       setSessionModels(prev => ({ ...prev, [newSession.id]: settings.visibleModels[0] || 'gemini-3-flash-preview' }));
       handleSelectSession(newSession.id);
   };
@@ -201,7 +244,6 @@ const App: React.FC = () => {
 
   // --- AI Command Execution Logic ---
   const executeAICommands = (text: string, sessionId: string) => {
-    // Check for Status Change
     const statusMatch = text.match(/\[\[STATUS:\s*(.*?)\]\]/);
     if (statusMatch) {
         const newStatus = statusMatch[1].trim().toLowerCase() as SessionStatus;
@@ -210,7 +252,6 @@ const App: React.FC = () => {
         }
     }
 
-    // Check for Title Change
     const titleMatch = text.match(/\[\[TITLE:\s*(.*?)\]\]/);
     if (titleMatch) {
         const newTitle = titleMatch[1].trim();
@@ -219,21 +260,19 @@ const App: React.FC = () => {
         }
     }
 
-    // Check for Label Add
     const labelMatch = text.match(/\[\[LABEL:\s*(.*?)\]\]/);
     if (labelMatch) {
         const labelName = labelMatch[1].trim();
         const existingLabel = availableLabels.find(l => l.name.toLowerCase() === labelName.toLowerCase());
         
         let labelIdToAdd = '';
-        
         if (existingLabel) {
             labelIdToAdd = existingLabel.id;
         } else {
             const newLabel: Label = {
                 id: Date.now().toString(),
                 name: labelName,
-                color: '#3B82F6' // Default color
+                color: '#3B82F6'
             };
             setAvailableLabels(prev => [...prev, newLabel]);
             labelIdToAdd = newLabel.id;
@@ -248,7 +287,6 @@ const App: React.FC = () => {
         }
     }
 
-    // Return text without the commands
     return text
         .replace(/\[\[STATUS:.*?\]\]/g, '')
         .replace(/\[\[TITLE:.*?\]\]/g, '')
@@ -272,14 +310,12 @@ const App: React.FC = () => {
       attachments: attachments
     };
     
-    // Add User Message
     setSessionMessages(prev => ({
         ...prev,
         [currentSessionId]: [...(prev[currentSessionId] || []), newMessage]
     }));
     setSessionLoading(prev => ({ ...prev, [currentSessionId]: true }));
 
-    // Placeholder for AI Message (Stream target)
     const aiMessageId = (Date.now() + 1).toString();
     const initialAiMessage: Message = {
         id: aiMessageId,
@@ -314,13 +350,10 @@ const App: React.FC = () => {
             if (parts.length === 0) {
                 parts.push({ text: " " });
             }
-            return {
-                role: m.role,
-                parts: parts
-            };
+            return { role: m.role, parts: parts };
         });
 
-        const modelId = sessionModels[currentSessionId];
+        const modelId = sessionModels[currentSessionId] || settings.visibleModels[0] || 'gemini-3-flash-preview';
         const agent = agents.find(a => a.id === modelId);
         
         let systemInstruction = settings.baseKnowledge;
@@ -331,18 +364,16 @@ const App: React.FC = () => {
             actualModel = agent.baseModel;
         }
 
-        // Inject AI Command Instructions
         systemInstruction = `${systemInstruction}\n\n${AI_COMMANDS_INSTRUCTION}`;
         
-        // --- API KEY SELECTION ---
         let apiKey = '';
         if (actualModel.startsWith('gemini-')) {
-            apiKey = settings.apiKeys.gemini;
+            apiKey = settings.apiKeys.gemini || process.env.API_KEY || '';
         } else if (actualModel.startsWith('deepseek-')) {
             apiKey = settings.apiKeys.deepSeek;
         } else if (actualModel.startsWith('moonshot-')) {
             apiKey = settings.apiKeys.moonshot;
-        } else if (OPENROUTER_FREE_MODELS.includes(actualModel)) {
+        } else if (actualModel.includes('/') || actualModel.includes(':')) { // OpenRouter pattern
             apiKey = settings.apiKeys.openRouter;
         }
         
@@ -352,9 +383,7 @@ const App: React.FC = () => {
                 return {
                     ...prev,
                     [currentSessionId]: msgs.map(m => 
-                        m.id === aiMessageId 
-                            ? { ...m, content, thoughtProcess } 
-                            : m
+                        m.id === aiMessageId ? { ...m, content, thoughtProcess } : m
                     )
                 };
             });
@@ -372,32 +401,22 @@ const App: React.FC = () => {
             mode
         );
         
-        // Final command execution and cleanup
         const cleanText = executeAICommands(response.text, currentSessionId);
         
-        // Update message with cleaned text
         setSessionMessages(prev => {
             const msgs = prev[currentSessionId] || [];
             return {
                 ...prev,
                 [currentSessionId]: msgs.map(m => 
-                    m.id === aiMessageId 
-                        ? { ...m, content: cleanText, thoughtProcess: response.thoughtProcess } 
-                        : m
+                    m.id === aiMessageId ? { ...m, content: cleanText, thoughtProcess: response.thoughtProcess } : m
                 )
             };
         });
 
-        setSessions(prev => prev.map(s => {
-           if (s.id === currentSessionId) {
-               return { ...s, hasNewResponse: true };
-           }
-           return s;
-        }));
+        setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, hasNewResponse: true } : s));
 
     } catch (e: any) {
         console.error("Failed to send message", e);
-        // Better error handling for Quota Exceeded
         const errorMessage = e.message?.includes('429') || e.message?.includes('quota') 
             ? "⚠️ API Quota Exceeded. Please add a valid API key in Settings." 
             : "Sorry, I encountered an error. Please check your network or API key.";
@@ -407,9 +426,7 @@ const App: React.FC = () => {
             return {
                 ...prev,
                 [currentSessionId]: msgs.map(m => 
-                    m.id === aiMessageId 
-                        ? { ...m, content: errorMessage } 
-                        : m
+                    m.id === aiMessageId ? { ...m, content: errorMessage } : m
                 )
             };
         });
@@ -437,10 +454,6 @@ const App: React.FC = () => {
   };
   const renameSession = (id: string, t: string) => setSessions(prev => prev.map(s => s.id === id ? { ...s, title: t } : s));
 
-  if (activeSession?.hasNewResponse) {
-     setTimeout(() => setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, hasNewResponse: false } : s)), 0);
-  }
-
   return (
     <div className="flex h-screen w-full bg-[var(--bg-primary)] overflow-hidden text-sm font-inter text-[var(--text-main)] selection:bg-[var(--accent)] selection:text-white">
       <SidebarNavigation 
@@ -461,7 +474,6 @@ const App: React.FC = () => {
 
       <WhatsNewModal isOpen={isWhatsNewOpen} onClose={() => setIsWhatsNewOpen(false)} />
 
-      {/* Main Content Area with Transitions */}
       <div className="flex-1 flex overflow-hidden relative">
           {currentView === 'chat' && (
               <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300">
@@ -525,7 +537,7 @@ const App: React.FC = () => {
               <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300">
                   <SettingsView 
                     settings={settings} 
-                    onUpdateSettings={setSettings}
+                    onUpdateSettings={handleUpdateSettings}
                     labels={availableLabels}
                     onUpdateLabels={setAvailableLabels}
                   />

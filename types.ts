@@ -74,14 +74,15 @@ export interface SidebarItem {
   count?: number;
 }
 
+// Current confirmed OpenRouter Free endpoints as of Feb 2025
 export const OPENROUTER_FREE_MODELS = [
-    'arcee-ai/trinity-large-preview:free',
-    'stepfun/step-3.5-flash:free',
-    'z-ai/glm-4.5-air:free',
-    'openai/gpt-oss-120b:free',
+    'google/gemini-2.0-flash-lite-preview-02-05:free',
+    'google/gemini-2.0-pro-exp-02-05:free',
+    'deepseek/deepseek-r1:free',
     'meta-llama/llama-3.3-70b-instruct:free',
-    'qwen/qwen3-next-80b-a3b-instruct:free',
-    'arcee-ai/trinity-mini:free'
+    'qwen/qwen-2.5-72b-instruct:free',
+    'nvidia/llama-3.1-nemotron-70b-instruct:free',
+    'microsoft/phi-3-medium-128k-instruct:free'
 ];
 
 export const GEMINI_MODELS = [

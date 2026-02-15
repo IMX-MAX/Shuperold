@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { Attachment, OPENROUTER_FREE_MODELS, SessionMode } from "../types";
 
@@ -9,25 +8,29 @@ import { Attachment, OPENROUTER_FREE_MODELS, SessionMode } from "../types";
 export const generateSessionTitle = async (
   history: {role: string, parts: any[]}[], 
   currentTitle: string,
-  _apiKey?: string // Parameter ignored as process.env.API_KEY is mandated by instructions
+  _apiKey?: string 
 ): Promise<string> => {
-  // Always use process.env.API_KEY directly for initialization
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   try {
+    const chatHistory = history.slice(-6).map(h => ({
+      role: h.role === 'model' ? 'model' : 'user',
+      parts: h.parts
+    }));
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: [
-        ...history.slice(-8), // use recent context to keep it efficient
+        ...chatHistory,
         { 
           role: 'user', 
-          parts: [{ text: "Based on the conversation context above, provide a very short session title (5 words max). Respond with ONLY the title." }] 
+          parts: [{ text: "Summarize this conversation into a 3-5 word title. Return ONLY the title text, no quotes or punctuation." }] 
         }
       ],
       config: {
-        temperature: 0.7,
+        temperature: 0.5,
       }
     });
-    // Access .text property directly as per @google/genai extraction rules
+    
     return response.text?.trim() || currentTitle;
   } catch (error) {
     console.error("Title generation error:", error);
@@ -36,7 +39,7 @@ export const generateSessionTitle = async (
 };
 
 /**
- * Sends a message to Gemini using the Google GenAI SDK.
+ * Sends a message to Gemini or an OpenAI-compatible provider.
  */
 export const sendMessageToGemini = async (
   message: string, 
@@ -50,12 +53,12 @@ export const sendMessageToGemini = async (
   mode: SessionMode = 'explore'
 ): Promise<{ text: string; thoughtProcess?: string }> => {
   
-  // --- PROVIDER ROUTING LOGIC ---
-  const isOpenRouter = OPENROUTER_FREE_MODELS.includes(modelName);
-  const isDeepSeek = modelName.startsWith('deepseek-');
-  const isMoonshot = modelName.startsWith('moonshot-');
+  const trimmedModel = modelName.trim();
+  const isOpenRouter = OPENROUTER_FREE_MODELS.includes(trimmedModel) || trimmedModel.includes(':free');
+  const isDeepSeek = trimmedModel.startsWith('deepseek-');
+  const isMoonshot = trimmedModel.startsWith('moonshot-');
 
-  let actualModel = modelName;
+  let actualModel = trimmedModel;
   if (mode === 'execute' && !isOpenRouter && !isDeepSeek && !isMoonshot) {
       actualModel = 'gemini-3-pro-preview';
   }
@@ -73,7 +76,6 @@ export const sendMessageToGemini = async (
   }
 
   // --- GOOGLE GEMINI SDK LOGIC ---
-  // Mandatory: Use process.env.API_KEY for GoogleGenAI initialization
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   
   try {
@@ -93,16 +95,14 @@ export const sendMessageToGemini = async (
     if (currentParts.length === 0) currentParts.push({ text: " " });
 
     let finalSystemInstruction = systemInstruction || "";
-    
     if (mode === 'execute') {
-        finalSystemInstruction += "\nYou are in EXECUTE mode. Be extremely precise, thorough, and provide the most advanced technical solution possible. Utilize your maximum reasoning depth.";
+        finalSystemInstruction += "\nYou are in EXECUTE mode. Be extremely precise, thorough, and provide the most advanced technical solution possible.";
     }
 
     const config: any = {
         systemInstruction: finalSystemInstruction.trim() || undefined,
     };
 
-    // Apply thinking config for supported Gemini 3/2.5 models
     if (mode === 'execute') {
         config.thinkingConfig = { thinkingBudget: 32768 }; 
     } else if (useThinking) {
@@ -116,19 +116,13 @@ export const sendMessageToGemini = async (
     });
 
     let fullText = "";
-    
     for await (const chunk of responseStream) {
-      // Access the .text property of the chunk directly (not a function call)
       const chunkText = chunk.text || "";
       fullText += chunkText;
-
-      if (onUpdate) {
-        onUpdate(fullText, undefined); 
-      }
+      if (onUpdate) onUpdate(fullText, undefined); 
     }
 
     return { text: fullText };
-
   } catch (error: any) {
     console.error("Gemini API Error:", error);
     return { text: `Error: ${error.message || "Failed to communicate with Gemini"}` };
@@ -136,8 +130,7 @@ export const sendMessageToGemini = async (
 };
 
 /**
- * Internal helper for OpenAI-compatible streaming chat completions.
- * Fixes truncated implementation issue.
+ * Internal helper for OpenAI-compatible streaming chat completions (OpenRouter, DeepSeek, Moonshot).
  */
 const sendMessageToOpenAICompatible = async (
     message: string, 
@@ -149,39 +142,62 @@ const sendMessageToOpenAICompatible = async (
     modelName: string
 ): Promise<{ text: string; thoughtProcess?: string }> => {
     
-    if (!apiKey) return { text: `${modelName} API Key missing. Please add it in Settings.` };
+    if (!apiKey) return { text: `API Key for ${modelName} missing. Please add it in Settings.` };
 
-    let baseUrl = '';
-    if (modelName.startsWith('deepseek-')) baseUrl = 'https://api.deepseek.com';
-    else if (modelName.startsWith('moonshot-')) baseUrl = 'https://api.moonshot.cn/v1';
-    else baseUrl = 'https://openrouter.ai/api/v1';
+    let fullUrl = '';
+    const trimmedModel = modelName.trim();
+    
+    if (trimmedModel.startsWith('deepseek-')) {
+        fullUrl = 'https://api.deepseek.com/chat/completions';
+    } else if (trimmedModel.startsWith('moonshot-')) {
+        fullUrl = 'https://api.moonshot.cn/v1/chat/completions';
+    } else {
+        // Default to OpenRouter
+        fullUrl = 'https://openrouter.ai/api/v1/chat/completions';
+    }
 
     const messages = [];
     if (systemInstruction) messages.push({ role: 'system', content: systemInstruction });
 
     history.forEach(h => {
         const content = h.parts.map(p => p.text).join(' ');
-        if (content.trim()) messages.push({ role: h.role === 'model' ? 'assistant' : 'user', content });
+        if (content.trim()) {
+            messages.push({ role: h.role === 'model' ? 'assistant' : 'user', content });
+        }
     });
 
     messages.push({ role: 'user', content: message });
 
     try {
-        const response = await fetch(`${baseUrl}/chat/completions`, {
+        const response = await fetch(fullUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiKey}`,
+                'HTTP-Referer': window.location.origin,
+                'X-Title': 'Shuper Workspace'
             },
             body: JSON.stringify({
-                model: modelName,
+                model: trimmedModel,
                 messages: messages,
                 stream: true
             })
         });
 
-        if (!response.ok) throw new Error(`API Error: ${response.status}`);
-        if (!response.body) throw new Error("No response body");
+        if (!response.ok) {
+            let errorMessage = `API Error: ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMessage += ` - ${errorData.error?.message || errorData.error || 'Unknown error'}`;
+            } catch (e) {
+                // If it's not JSON, try text
+                const text = await response.text().catch(() => '');
+                if (text) errorMessage += ` - ${text.slice(0, 100)}`;
+            }
+            throw new Error(errorMessage);
+        }
+        
+        if (!response.body) throw new Error("No response body received from provider.");
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -209,13 +225,13 @@ const sendMessageToOpenAICompatible = async (
                         if (onUpdate) onUpdate(fullText);
                     }
                 } catch (e) {
-                    console.error("Error parsing stream chunk", e);
+                    // Silently catch partial JSON chunks in stream
                 }
             }
         }
         return { text: fullText };
     } catch (error: any) {
-        console.error(`${modelName} API Error:`, error);
-        return { text: `Error: ${error.message || "Failed to communicate with API"}` };
+        console.error(`${trimmedModel} API Error:`, error);
+        return { text: `${error.message || "Failed to communicate with provider API"}` };
     }
 };
