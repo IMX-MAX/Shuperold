@@ -61,7 +61,6 @@ export interface UserSettings {
   sendKey: 'Enter' | 'Ctrl+Enter';
   onboardingComplete: boolean;
   apiKeys: {
-      gemini: string;
       openRouter: string;
       deepSeek: string;
       moonshot: string;
@@ -84,13 +83,12 @@ export const OPENROUTER_FREE_MODELS = [
     'mistralai/mistral-small-3.1-24b-instruct:free'
 ];
 
+// @google/genai guidelines: Use only supported model names. MUST NOT use gemini-1.5-pro or other legacy names.
 export const GEMINI_MODELS = [
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-lite-preview-02-05',
     'gemini-3-flash-preview', 
     'gemini-3-pro-preview', 
-    'gemini-2.0-flash-thinking-exp-01-21', 
-    'gemini-1.5-pro'
+    'gemini-flash-latest',
+    'gemini-flash-lite-latest'
 ];
 
 export const DEEPSEEK_MODELS = [

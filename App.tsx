@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Inbox, Layout, User, Rocket, ShieldAlert, AlertTriangle, Trash2, Wrench } from 'lucide-react';
+import { Inbox, Layout, User, Rocket, ShieldAlert, AlertTriangle, Trash2, Wrench, Menu } from 'lucide-react';
 import { SidebarNavigation } from './components/SidebarNavigation';
 import { SessionList } from './components/SessionList';
 import { ChatInterface } from './components/ChatInterface';
@@ -44,7 +44,6 @@ const DEFAULT_SETTINGS: UserSettings = {
     sendKey: 'Enter',
     onboardingComplete: false,
     apiKeys: {
-        gemini: '',
         openRouter: '',
         deepSeek: '',
         moonshot: ''
@@ -53,22 +52,22 @@ const DEFAULT_SETTINGS: UserSettings = {
 
 const AI_COMMANDS_INSTRUCTION = `
 IDENTITY:
-You are Shuper AI, a high-performance assistant integrated into the Shuper Workspace. Always identify as Shuper AI if asked.
+You are Shuper AI, a high-performance assistant integrated into the Shuper Workspace.
+You provide extremely precise, efficient, and sophisticated responses.
 
-SYSTEM TOOL CAPABILITIES:
-You can control the chat interface using special tags. Output these ONLY when the user explicitly requests an update.
+STRICT CONVERSATION RULES:
+1. NO SIGN-OFFS. Do not say "Respectfully, Shuper AI", "Best regards", or any other closing statement.
+2. NO META-TALK. Do not output status updates or inner thoughts in brackets, such as "[Wait for further instruction]", "[Contentedly waiting]", or "[Tags will remain unused]".
+3. BE DIRECT. Get straight to the helpful information.
+4. IDENTITY. If asked, you are Shuper AI.
 
-Commands:
-- Rename Chat: [[TITLE: New Title Here]]
-- Change Status: [[STATUS: todo | backlog | needs_review | done | cancelled | archive]]
-- Add Label: [[LABEL: Label Name]]
+SYSTEM CAPABILITIES (USE ONLY IF REQUESTED):
+- [[TITLE: New Title]] - To rename this session.
+- [[STATUS: backlog | todo | needs_review | done | cancelled | archive]] - To change status.
+- [[LABEL: Label Name]] - To add a label to this session.
 
-LABEL POLICY:
-IMPORTANT: You MUST NOT use the [[LABEL: ...]] tag to create a NEW label that doesn't exist unless the user has explicitly given permission to create that specific new label in this conversation. If you suggest a label, wait for user confirmation before outputting the tag.
-
-Usage Rule:
-- Output these tags on a separate line at the end of your response.
-- Do not output tags for normal conversation.
+LABEL RESTRICTION:
+IMPORTANT: You MUST NOT output the [[LABEL: ...]] tag for a NEW label that doesn't already exist unless the user has explicitly given you permission to create that specific new label in the current turn. If you think a new label is needed, suggest it and wait for user confirmation before using the tag.
 `;
 
 function useStickyState<T>(defaultValue: T, key: string): [T, React.Dispatch<React.SetStateAction<T>>] {
@@ -197,6 +196,8 @@ const ModelErrorPopup: React.FC<{ error: string, onClose: () => void }> = ({ err
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'chat' | 'agents' | 'settings'>('chat');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isMobileSessionListOpen, setIsMobileSessionListOpen] = useState(true);
   
   // Persisted State
   const [settings, setSettings] = useStickyState<UserSettings>(DEFAULT_SETTINGS, 'shuper_settings');
@@ -221,7 +222,8 @@ const App: React.FC = () => {
   useEffect(() => {
       if (settings.onboardingComplete) {
           if (sessions.length > 0 && !activeSessionId) {
-              setActiveSessionId(sessions[0].id);
+              // On desktop we select first session, on mobile we keep list open
+              // setActiveSessionId(sessions[0].id);
           } else if (sessions.length === 0 && currentView === 'chat') {
               handleNewSession();
           }
@@ -266,9 +268,6 @@ const App: React.FC = () => {
   const handleUpdateSettings = useCallback((newSettings: UserSettings) => {
     const updatedVisibleModels = new Set(newSettings.visibleModels);
     
-    if (newSettings.apiKeys.gemini && !settings.apiKeys.gemini) {
-        GEMINI_MODELS.forEach(m => updatedVisibleModels.add(m));
-    }
     if (newSettings.apiKeys.openRouter && !settings.apiKeys.openRouter) {
         OPENROUTER_FREE_MODELS.forEach(m => updatedVisibleModels.add(m));
     }
@@ -286,8 +285,12 @@ const App: React.FC = () => {
   }, [settings, setSettings]);
 
   const handleSelectSession = (id: string) => {
-      if (id === activeSessionId) return;
+      if (id === activeSessionId) {
+          setIsMobileSessionListOpen(false);
+          return;
+      }
       setActiveSessionId(id);
+      setIsMobileSessionListOpen(false); // On mobile, close list when selecting session
       setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === id ? { ...s, hasNewResponse: false } : s) : prev);
       const newHistory = history.slice(0, historyIndex + 1);
       newHistory.push(id);
@@ -329,11 +332,8 @@ const App: React.FC = () => {
           mode: 'explore'
       };
       
-      const defaultModel = settings.visibleModels.length > 0 ? settings.visibleModels[0] : 'gemini-3-flash-preview';
-
       setSessions(prev => [newSession, ...(Array.isArray(prev) ? prev : [])]);
       setSessionMessages(prev => ({ ...prev, [newSession.id]: [] }));
-      setSessionModels(prev => ({ ...prev, [newSession.id]: defaultModel }));
       handleSelectSession(newSession.id);
   };
 
@@ -349,7 +349,7 @@ const App: React.FC = () => {
           parts: [{ text: m.content }]
       }));
 
-      const newTitle = await generateSessionTitle(historyData, session.title, settings.apiKeys.gemini);
+      const newTitle = await generateSessionTitle(historyData, session.title);
       setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === sessionId ? { ...s, title: newTitle } : s) : prev);
   };
 
@@ -415,6 +415,12 @@ const App: React.FC = () => {
   const handleSendMessage = async (text: string, attachments: Attachment[], useThinking: boolean, mode: SessionMode, existingMsgId?: string) => {
     if (!activeSessionId) return;
     const currentSessionId = activeSessionId; 
+
+    const modelId = sessionModels[currentSessionId];
+    if (!modelId) {
+        console.warn("Attempted to send message without selecting a model.");
+        return;
+    }
 
     if (activeSession?.title === 'New Chat' && text && !existingMsgId) {
         setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === currentSessionId ? { ...s, title: text.slice(0, 30) + (text.length > 30 ? '...' : '') } : s) : prev);
@@ -493,7 +499,6 @@ const App: React.FC = () => {
             return { role: m.role, parts: parts };
         });
 
-        const modelId = sessionModels[currentSessionId] || settings.visibleModels[0] || 'gemini-3-flash-preview';
         const agent = agents.find(a => a.id === modelId);
         
         let systemInstruction = settings.baseKnowledge;
@@ -507,8 +512,8 @@ const App: React.FC = () => {
         systemInstruction = `${systemInstruction}\n\n${AI_COMMANDS_INSTRUCTION}`;
         
         let apiKey = '';
-        if (actualModel.startsWith('gemini-')) {
-            apiKey = settings.apiKeys.gemini || process.env.API_KEY || '';
+        if (actualModel.includes('gemini-') || actualModel.includes('flash')) {
+            apiKey = process.env.API_KEY || '';
         } else if (actualModel.startsWith('deepseek-')) {
             apiKey = settings.apiKeys.deepSeek;
         } else if (actualModel.startsWith('moonshot-')) {
@@ -629,7 +634,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen w-full bg-[var(--bg-primary)] overflow-hidden text-sm font-inter text-[var(--text-main)] selection:bg-[var(--accent)] selection:text-white">
+    <div className="flex h-screen w-full bg-[var(--bg-primary)] overflow-hidden text-sm font-inter text-[var(--text-main)] selection:bg-[var(--accent)] selection:text-white relative">
       {!settings.onboardingComplete && (
           <OnboardingModal onComplete={(name, workspace) => {
               setSettings({ ...settings, userName: name, workspaceName: workspace, onboardingComplete: true });
@@ -649,87 +654,138 @@ const App: React.FC = () => {
           />
       )}
 
-      <SidebarNavigation 
-        currentFilter={currentFilter} 
-        onSetFilter={setCurrentFilter} 
-        onNewSession={handleNewSession}
-        onBack={handleBack}
-        onForward={handleForward}
-        canBack={historyIndex > 0}
-        canForward={historyIndex < history.length - 1}
-        statusCounts={statusCounts}
-        availableLabels={availableLabels}
-        currentView={currentView}
-        onChangeView={setCurrentView}
-        workspaceName={settings.workspaceName}
-        onShowWhatsNew={() => setIsWhatsNewOpen(true)}
-      />
+      {/* Sidebar Overlay for Mobile */}
+      {isMobileSidebarOpen && (
+          <div 
+              className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 animate-in fade-in duration-300" 
+              onClick={() => setIsMobileSidebarOpen(false)}
+          />
+      )}
+
+      <div className={`
+          fixed md:relative inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out
+          ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0
+      `}>
+          <SidebarNavigation 
+            currentFilter={currentFilter} 
+            onSetFilter={(f) => {
+                setCurrentFilter(f);
+                setIsMobileSidebarOpen(false);
+                setIsMobileSessionListOpen(true);
+            }} 
+            onNewSession={() => {
+                handleNewSession();
+                setIsMobileSidebarOpen(false);
+            }}
+            onBack={handleBack}
+            onForward={handleForward}
+            canBack={historyIndex > 0}
+            canForward={historyIndex < history.length - 1}
+            statusCounts={statusCounts}
+            availableLabels={availableLabels}
+            currentView={currentView}
+            onChangeView={(v) => {
+                setCurrentView(v);
+                setIsMobileSidebarOpen(false);
+            }}
+            workspaceName={settings.workspaceName}
+            onShowWhatsNew={() => setIsWhatsNewOpen(true)}
+            onCloseMobile={() => setIsMobileSidebarOpen(false)}
+          />
+      </div>
 
       <WhatsNewModal isOpen={isWhatsNewOpen} onClose={() => setIsWhatsNewOpen(false)} />
 
       <div className="flex-1 flex overflow-hidden relative">
           {currentView === 'chat' && (
               <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300">
-                <SessionList 
-                    sessions={filteredSessions} 
-                    activeSessionId={activeSessionId || ''} 
-                    onSelectSession={handleSelectSession}
-                    onUpdateSessionStatus={updateSessionStatus} 
-                    onDeleteSession={deleteSession}
-                    onRenameSession={renameSession}
-                    onRegenerateTitle={handleRegenerateTitle}
-                    availableLabels={availableLabels}
-                    onToggleLabel={updateSessionLabels}
-                    onCreateLabel={(l) => setAvailableLabels(prev => [...prev, l])}
-                    sessionLoading={sessionLoading}
-                    onNewSession={handleNewSession}
-                    onToggleFlag={toggleSessionFlag}
-                    currentFilter={currentFilter}
-                />
-                {activeSession ? (
-                    <ChatInterface 
-                        key={activeSession.id}
-                        session={activeSession}
-                        messages={activeMessages} 
-                        onSendMessage={handleSendMessage}
-                        onStopGeneration={() => handleStopGeneration(activeSessionId!)}
-                        isLoading={activeLoading}
-                        onUpdateStatus={(status) => updateSessionStatus(activeSessionId!, status)}
-                        onUpdateMode={(mode) => updateSessionMode(activeSessionId!, mode)}
-                        availableLabels={availableLabels}
-                        onUpdateLabels={(labelId) => updateSessionLabels(activeSessionId!, labelId)}
-                        onCreateLabel={(l) => setAvailableLabels(prev => [...prev, l])}
-                        onDeleteSession={() => deleteSession(activeSessionId!)}
-                        onRenameSession={(title) => renameSession(activeSessionId!, title)}
+                <div className={`
+                    w-full md:w-[300px] flex-shrink-0 transition-all duration-300
+                    ${isMobileSessionListOpen ? 'block' : 'hidden'} md:block
+                `}>
+                    <SessionList 
+                        sessions={filteredSessions} 
+                        activeSessionId={activeSessionId || ''} 
+                        onSelectSession={handleSelectSession}
+                        onUpdateSessionStatus={updateSessionStatus} 
+                        onDeleteSession={deleteSession}
+                        onRenameSession={renameSession}
                         onRegenerateTitle={handleRegenerateTitle}
-                        onToggleFlag={() => toggleSessionFlag(activeSessionId!)}
-                        onChangeView={setCurrentView}
-                        
-                        visibleModels={settings.visibleModels}
-                        agents={agents}
-                        currentModel={activeSessionId ? (sessionModels[activeSessionId] || settings.visibleModels[0]) : 'gemini-3-flash-preview'}
-                        onSelectModel={(m) => {
-                            if(activeSessionId) setSessionModels(prev => ({...prev, [activeSessionId]: m}));
-                        }}
-                        sendKey={settings.sendKey}
-                        hasOpenRouterKey={!!settings.apiKeys.openRouter}
-                        hasDeepSeekKey={!!settings.apiKeys.deepSeek}
-                        hasMoonshotKey={!!settings.apiKeys.moonshot}
+                        availableLabels={availableLabels}
+                        onToggleLabel={updateSessionLabels}
+                        onCreateLabel={(l) => setAvailableLabels(prev => [...prev, l])}
+                        sessionLoading={sessionLoading}
+                        onNewSession={handleNewSession}
+                        onToggleFlag={toggleSessionFlag}
+                        currentFilter={currentFilter}
+                        onOpenSidebar={() => setIsMobileSidebarOpen(true)}
                     />
-                ) : (
-                    <div className="flex-1 flex items-center justify-center text-[var(--text-dim)] bg-[var(--bg-tertiary)] flex-col gap-2">
-                        <div className="w-16 h-16 rounded-2xl bg-[var(--bg-elevated)] flex items-center justify-center mb-4 shadow-lg">
-                            <Inbox className="w-6 h-6 text-[var(--text-muted)]" strokeWidth={1.5} />
+                </div>
+                
+                <div className={`
+                    flex-1 transition-all duration-300 h-full
+                    ${!isMobileSessionListOpen || !activeSessionId ? 'block' : 'hidden md:block'}
+                `}>
+                    {activeSession ? (
+                        <ChatInterface 
+                            key={activeSession.id}
+                            session={activeSession}
+                            messages={activeMessages} 
+                            onSendMessage={handleSendMessage}
+                            onStopGeneration={() => handleStopGeneration(activeSessionId!)}
+                            isLoading={activeLoading}
+                            onUpdateStatus={(status) => updateSessionStatus(activeSessionId!, status)}
+                            onUpdateMode={(mode) => updateSessionMode(activeSessionId!, mode)}
+                            availableLabels={availableLabels}
+                            onUpdateLabels={(labelId) => updateSessionLabels(activeSessionId!, labelId)}
+                            onCreateLabel={(l) => setAvailableLabels(prev => [...prev, l])}
+                            onDeleteSession={() => deleteSession(activeSessionId!)}
+                            onRenameSession={(title) => renameSession(activeSessionId!, title)}
+                            onRegenerateTitle={handleRegenerateTitle}
+                            onToggleFlag={() => toggleSessionFlag(activeSessionId!)}
+                            onChangeView={setCurrentView}
+                            
+                            visibleModels={settings.visibleModels}
+                            agents={agents}
+                            currentModel={activeSessionId ? (sessionModels[activeSessionId] || '') : ''}
+                            onSelectModel={(m) => {
+                                if(activeSessionId) setSessionModels(prev => ({...prev, [activeSessionId]: m}));
+                            }}
+                            sendKey={settings.sendKey}
+                            hasOpenRouterKey={!!settings.apiKeys.openRouter}
+                            hasDeepSeekKey={!!settings.apiKeys.deepSeek}
+                            hasMoonshotKey={!!settings.apiKeys.moonshot}
+                            onBackToList={() => setIsMobileSessionListOpen(true)}
+                            onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+                        />
+                    ) : (
+                        <div className="flex-1 flex items-center justify-center text-[var(--text-dim)] bg-[var(--bg-tertiary)] flex-col gap-2 h-full">
+                            <div className="md:hidden absolute top-4 left-4">
+                                <button onClick={() => setIsMobileSidebarOpen(true)} className="p-2 bg-[var(--bg-elevated)] rounded-lg text-[var(--text-main)]">
+                                    <Menu className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <div className="w-16 h-16 rounded-2xl bg-[var(--bg-elevated)] flex items-center justify-center mb-4 shadow-lg">
+                                <Inbox className="w-6 h-6 text-[var(--text-muted)]" strokeWidth={1.5} />
+                            </div>
+                            <h3 className="text-lg font-medium text-[var(--text-main)]">Welcome to Shuper</h3>
+                            <p className="text-[var(--text-dim)] px-10 text-center">Select a session or create a new one to get started.</p>
+                            <button onClick={() => setIsMobileSessionListOpen(true)} className="md:hidden mt-4 px-6 py-2 bg-white text-black rounded-xl font-bold">
+                                View Sessions
+                            </button>
                         </div>
-                        <h3 className="text-lg font-medium text-[var(--text-main)]">Welcome to Shuper</h3>
-                        <p className="text-[var(--text-dim)]">Select a session or create a new one to get started.</p>
-                    </div>
-                )}
+                    )}
+                </div>
               </div>
           )}
 
           {currentView === 'settings' && (
               <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300">
+                  <div className="md:hidden absolute top-4 left-4 z-10">
+                      <button onClick={() => setIsMobileSidebarOpen(true)} className="p-2 bg-[var(--bg-elevated)] rounded-lg text-[var(--text-main)]">
+                          <Menu className="w-5 h-5" />
+                      </button>
+                  </div>
                   <SettingsView 
                     settings={settings} 
                     onUpdateSettings={handleUpdateSettings}
@@ -743,6 +799,11 @@ const App: React.FC = () => {
 
           {currentView === 'agents' && (
               <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300">
+                  <div className="md:hidden absolute top-4 left-4 z-10">
+                      <button onClick={() => setIsMobileSidebarOpen(true)} className="p-2 bg-[var(--bg-elevated)] rounded-lg text-[var(--text-main)]">
+                          <Menu className="w-5 h-5" />
+                      </button>
+                  </div>
                   <AgentsView 
                     agents={agents}
                     onCreateAgent={(a) => setAgents(prev => [...prev, a])}

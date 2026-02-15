@@ -14,7 +14,11 @@ import {
   RefreshCcw,
   Compass,
   Trash2,
-  Edit2
+  Edit2,
+  Bot,
+  Menu,
+  ChevronLeft,
+  Check
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -40,8 +44,6 @@ interface ChatInterfaceProps {
   onRenameSession: (newTitle: string) => void;
   onUpdateMode: (mode: SessionMode) => void;
   onChangeView: (view: 'chat' | 'agents' | 'settings') => void;
-  
-  // New props for InputArea state
   visibleModels: string[];
   agents: Agent[];
   currentModel: string;
@@ -49,10 +51,11 @@ interface ChatInterfaceProps {
   sendKey: 'Enter' | 'Ctrl+Enter';
   onRegenerateTitle: (id: string) => void;
   onToggleFlag: () => void;
-  // Key props for model visibility
   hasOpenRouterKey?: boolean;
   hasDeepSeekKey?: boolean;
   hasMoonshotKey?: boolean;
+  onBackToList?: () => void;
+  onOpenSidebar?: () => void;
 }
 
 const ThinkingBlock = ({ thoughtProcess, isGenerating }: { thoughtProcess: string, isGenerating?: boolean }) => {
@@ -62,36 +65,34 @@ const ThinkingBlock = ({ thoughtProcess, isGenerating }: { thoughtProcess: strin
     const steps = lines.slice(1);
 
     return (
-        <div className="mb-4 rounded-xl overflow-hidden bg-[#0A0A0A] border border-[#262626] font-inter">
+        <div className="mb-4 rounded-xl overflow-hidden bg-[#0A0A0A] border border-[#262626] font-inter shadow-inner animate-in fade-in slide-in-from-top-1 duration-500">
             <div 
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[#151515] transition-colors select-none group"
+                className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[#151515] transition-all select-none group"
             >
-                <div className={`p-1.5 rounded-full ${isGenerating ? 'bg-[var(--accent)]/10 text-[var(--accent)]' : 'bg-[#262626] text-[var(--text-muted)]'}`}>
+                <div className={`p-1.5 rounded-full transition-all duration-500 ${isGenerating ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'bg-[#262626] text-[var(--text-muted)]'}`}>
                     {isGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
                 </div>
-                <div className="flex flex-col">
+                <div className="flex flex-col overflow-hidden">
                     <span className="text-[13px] text-[var(--text-main)] font-medium leading-tight">
                         {isGenerating ? "Thinking..." : "Finished Thinking"}
                     </span>
-                    <span className="text-[11px] text-[var(--text-dim)] truncate max-w-[300px]">
+                    <span className="text-[11px] text-[var(--text-dim)] truncate max-w-[180px] md:max-w-[240px] transition-opacity duration-300">
                         {lines.length > 0 ? lines[lines.length-1] : "Initializing..."}
                     </span>
                 </div>
                 <div className="flex-1" />
-                {isExpanded ? (
+                <div className={`transition-transform duration-300 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}>
                     <ChevronDown className="w-4 h-4 text-[var(--text-dim)]" />
-                ) : (
-                    <ChevronRight className="w-4 h-4 text-[var(--text-dim)]" />
-                )}
+                </div>
             </div>
             
-            {isExpanded && (
-                <div className="px-4 pb-4 animate-in slide-in-from-top-1 fade-in duration-200">
+            <div className={`transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+                <div className="px-4 pb-4">
                     <div className="h-[1px] bg-[#262626] mb-3" />
-                    <p className="text-[13px] text-[var(--text-muted)] mb-4 pl-1">{summary}</p>
+                    <p className="text-[13px] text-[var(--text-muted)] mb-4 pl-1 border-l-2 border-[var(--accent)]/30 leading-relaxed">{summary}</p>
                     
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         {steps.map((step, idx) => {
                             let Icon = Search;
                             let label = "Searching";
@@ -100,14 +101,14 @@ const ThinkingBlock = ({ thoughtProcess, isGenerating }: { thoughtProcess: strin
                             else if (lower.includes('web') || lower.includes('site') || lower.includes('http')) { Icon = Globe; label = "Browsing"; }
 
                             return (
-                                <div key={idx} className="flex items-start gap-3 animate-in fade-in slide-in-from-left-2 duration-300">
-                                    <div className="mt-1"><div className="w-1.5 h-1.5 rounded-full bg-[#333]"></div></div>
+                                <div key={idx} className="flex items-start gap-3 animate-in fade-in slide-in-from-left-2 duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
+                                    <div className="mt-1.5"><div className="w-1.5 h-1.5 rounded-full bg-[#333]"></div></div>
                                     <div className="flex-1">
                                          <div className="flex items-center gap-2 mb-1">
                                              <Icon className="w-3 h-3 text-[var(--text-dim)]" />
-                                             <span className="text-[11px] text-[var(--text-dim)] uppercase tracking-wider font-semibold">{label}</span>
+                                             <span className="text-[11px] text-[var(--text-dim)] uppercase tracking-widest font-bold">{label}</span>
                                          </div>
-                                         <div className="bg-[#151515] border border-[#262626] rounded-lg px-3 py-2 text-[13px] text-[var(--text-muted)] hover:border-[#404040] hover:text-[var(--text-main)] transition-colors cursor-default">
+                                         <div className="bg-[#151515]/50 border border-[#262626] rounded-lg px-3 py-2 text-[13px] text-[var(--text-muted)] hover:border-[#404040] hover:text-[var(--text-main)] transition-colors cursor-default">
                                              {step.replace(/^-/, '').trim()}
                                          </div>
                                     </div>
@@ -115,14 +116,14 @@ const ThinkingBlock = ({ thoughtProcess, isGenerating }: { thoughtProcess: strin
                             );
                         })}
                         {isGenerating && (
-                            <div className="flex items-center gap-3 pl-1 opacity-50">
-                                <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse"></div>
-                                <span className="text-[12px] text-[var(--text-dim)] italic">Processing...</span>
+                            <div className="flex items-center gap-3 pl-1 animate-pulse">
+                                <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]"></div>
+                                <span className="text-[12px] text-[var(--text-dim)] italic">Synthesizing...</span>
                             </div>
                         )}
                     </div>
                 </div>
-            )}
+            </div>
         </div>
     );
 };
@@ -131,7 +132,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     session, messages, onSendMessage, onStopGeneration, isLoading, onUpdateStatus,
     availableLabels, onUpdateLabels, onCreateLabel, onDeleteSession, onRenameSession,
     onUpdateMode, onChangeView, visibleModels, agents, currentModel, onSelectModel,
-    sendKey, onRegenerateTitle, onToggleFlag, hasOpenRouterKey, hasDeepSeekKey, hasMoonshotKey
+    sendKey, onRegenerateTitle, onToggleFlag, hasOpenRouterKey, hasDeepSeekKey, hasMoonshotKey,
+    onBackToList, onOpenSidebar
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [titleMenuPosition, setTitleMenuPosition] = useState<{x: number, y: number} | null>(null);
@@ -140,13 +142,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editedTitle, setEditedTitle] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const [isLabelMenuOpen, setIsLabelMenuOpen] = useState(false);
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollTo({
+          top: scrollRef.current.scrollHeight,
+          behavior: 'smooth'
+      });
     }
   }, [messages, isLoading, messages[messages.length - 1]?.thoughtProcess]);
 
@@ -194,14 +200,76 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       e.stopPropagation();
       setMessageContextMenu({ x: e.clientX, y: e.clientY, messageId: msgId });
   };
+
+  const handleCopyText = (text: string, id: string) => {
+      navigator.clipboard.writeText(text).then(() => {
+          setCopiedId(id);
+          setTimeout(() => setCopiedId(null), 2000);
+      });
+  };
   
   const StatusIcon = STATUS_CONFIG[session.status].icon;
 
   return (
     <div 
-        className="flex-1 flex flex-col h-full bg-[var(--bg-tertiary)] relative font-inter transition-all duration-300 animate-in fade-in zoom-in-95"
+        className="flex-1 flex flex-col h-full bg-[var(--bg-tertiary)] relative font-inter overflow-hidden"
         onContextMenu={handleChatContextMenu}
     >
+      {/* Absolute Header Overlay */}
+      <div className="h-14 flex items-center justify-between px-3 md:px-6 border-b border-[var(--border)] z-30 absolute top-0 left-0 right-0 bg-[var(--bg-tertiary)]/80 backdrop-blur-md transition-all duration-300">
+        <div className="flex items-center gap-2 max-w-[60%]">
+            {onBackToList && (
+                <button onClick={onBackToList} className="md:hidden p-1 rounded hover:bg-[var(--bg-elevated)] text-[var(--text-main)]">
+                    <ChevronLeft className="w-5 h-5" />
+                </button>
+            )}
+            {!onBackToList && onOpenSidebar && (
+                <button onClick={onOpenSidebar} className="md:hidden p-1 rounded hover:bg-[var(--bg-elevated)] text-[var(--text-main)]">
+                    <Menu className="w-5 h-5" />
+                </button>
+            )}
+            
+            {isEditingTitle ? (
+                <input autoFocus className="bg-[var(--bg-elevated)] text-[var(--text-main)] border border-[var(--border)] rounded px-2 py-1 text-sm focus:outline-none w-full animate-in fade-in zoom-in-95 duration-200" value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} onBlur={handleTitleSave} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleTitleSave(); } }} />
+            ) : (
+                <div onClick={handleTitleClick} onDoubleClick={handleDoubleclickTitle} className="flex items-center gap-1 text-[var(--text-main)] font-medium text-sm cursor-pointer hover:bg-[var(--bg-elevated)] px-2 py-1 rounded transition-all max-w-full truncate select-none active:scale-[0.98]">
+                  <span className="truncate">{session.title}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-[var(--text-dim)]" />
+                </div>
+            )}
+        </div>
+        
+        <div className="flex items-center gap-1.5 md:gap-3">
+             <div className="relative">
+                 <button onClick={() => setIsStatusMenuOpen(true)} className="flex items-center gap-2 px-2 py-1 md:px-2.5 md:py-1 rounded-md bg-[var(--bg-elevated)] hover:bg-[var(--border)] border border-[var(--border)] transition-colors text-[11px] md:text-xs font-medium text-[var(--text-dim)] hover:text-[var(--text-main)] active:scale-95">
+                     <StatusIcon className={`w-3.5 h-3.5 ${STATUS_CONFIG[session.status].color}`} />
+                     <span className="hidden sm:inline">{STATUS_CONFIG[session.status].label}</span>
+                     <ChevronDown className="w-3 h-3 opacity-50" />
+                 </button>
+                 <StatusSelector isOpen={isStatusMenuOpen} onClose={() => setIsStatusMenuOpen(false)} currentStatus={session.status} onSelect={onUpdateStatus} position={{ top: 35, right: 0 }} />
+             </div>
+             
+             <div className="relative hidden sm:block">
+                 <button onClick={() => setIsLabelMenuOpen(true)} className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-[var(--bg-elevated)] hover:bg-[var(--border)] border border-[var(--border)] transition-colors text-xs font-medium text-[var(--text-dim)] hover:text-[var(--text-main)] active:scale-95">
+                     {session.labelIds.length > 0 ? (
+                         <>
+                             <div className="flex -space-x-1.5">
+                                 {session.labelIds.slice(0, 3).map(id => {
+                                     const label = availableLabels.find(l => l.id === id);
+                                     if(!label) return null;
+                                     return <div key={id} className="w-2.5 h-2.5 rounded-full border border-[var(--bg-elevated)]" style={{ backgroundColor: label.color }}></div>;
+                                 })}
+                             </div>
+                             <span>{session.labelIds.length > 3 ? `+${session.labelIds.length - 3}` : 'Labels'}</span>
+                         </>
+                     ) : <span>Add Label</span>}
+                     <ChevronDown className="w-3 h-3 opacity-50" />
+                 </button>
+                 <LabelSelector isOpen={isLabelMenuOpen} onClose={() => setIsLabelMenuOpen(false)} availableLabels={availableLabels} selectedLabelIds={session.labelIds} onToggleLabel={onUpdateLabels} position={{ top: 35, right: 0 }} />
+             </div>
+        </div>
+      </div>
+
       {chatContextMenu && (
           <>
             <div className="fixed inset-0 z-[100]" onClick={() => setChatContextMenu(null)} />
@@ -241,63 +309,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 <div 
                     onClick={() => {
                         const content = messages.find(m => m.id === messageContextMenu.messageId)?.content;
-                        if (content) navigator.clipboard.writeText(content);
+                        if (content) handleCopyText(content, messageContextMenu.messageId);
                         setMessageContextMenu(null);
                     }}
                     className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1 transition-colors"
                 >
-                    <Copy className="w-4 h-4" />
-                    <span>Copy Text</span>
+                    {copiedId === messageContextMenu.messageId ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                    <span>{copiedId === messageContextMenu.messageId ? 'Copied!' : 'Copy Text'}</span>
                 </div>
             </div>
           </>
       )}
 
-      <div className="h-14 flex items-center justify-between px-6 border-b border-transparent z-10 absolute top-0 left-0 right-0 bg-[var(--bg-tertiary)]">
-        {isEditingTitle ? (
-            <input autoFocus className="bg-[var(--bg-elevated)] text-[var(--text-main)] border border-[var(--border)] rounded px-2 py-1 text-sm focus:outline-none w-[60%]" value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} onBlur={handleTitleSave} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleTitleSave(); } }} />
-        ) : (
-            <div onClick={handleTitleClick} onDoubleClick={handleDoubleclickTitle} className="flex items-center gap-1 text-[var(--text-main)] font-medium text-sm cursor-pointer hover:bg-[var(--bg-elevated)] px-2 py-1 rounded transition-colors max-w-[50%] truncate select-none">
-              <span className="truncate">{session.title}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-[var(--text-dim)]" />
-            </div>
-        )}
-        
-        <div className="flex items-center gap-3">
-             <div className="relative">
-                 <button onClick={() => setIsStatusMenuOpen(true)} className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-[var(--bg-elevated)] hover:bg-[var(--border)] border border-[var(--border)] transition-colors text-xs font-medium text-[var(--text-dim)] hover:text-[var(--text-main)]">
-                     <StatusIcon className={`w-3.5 h-3.5 ${STATUS_CONFIG[session.status].color}`} />
-                     <span>{STATUS_CONFIG[session.status].label}</span>
-                     <ChevronDown className="w-3 h-3 opacity-50" />
-                 </button>
-                 <StatusSelector isOpen={isStatusMenuOpen} onClose={() => setIsStatusMenuOpen(false)} currentStatus={session.status} onSelect={onUpdateStatus} position={{ top: 35, left: -80 }} />
-             </div>
-             
-             <div className="relative">
-                 <button onClick={() => setIsLabelMenuOpen(true)} className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-[var(--bg-elevated)] hover:bg-[var(--border)] border border-[var(--border)] transition-colors text-xs font-medium text-[var(--text-dim)] hover:text-[var(--text-main)]">
-                     {session.labelIds.length > 0 ? (
-                         <>
-                             <div className="flex -space-x-1.5">
-                                 {session.labelIds.slice(0, 3).map(id => {
-                                     const label = availableLabels.find(l => l.id === id);
-                                     if(!label) return null;
-                                     return <div key={id} className="w-2.5 h-2.5 rounded-full border border-[var(--bg-elevated)]" style={{ backgroundColor: label.color }}></div>;
-                                 })}
-                             </div>
-                             <span>{session.labelIds.length > 3 ? `+${session.labelIds.length - 3}` : 'Labels'}</span>
-                         </>
-                     ) : <span>Add Label</span>}
-                     <ChevronDown className="w-3 h-3 opacity-50" />
-                 </button>
-                 <LabelSelector isOpen={isLabelMenuOpen} onClose={() => setIsLabelMenuOpen(false)} availableLabels={availableLabels} selectedLabelIds={session.labelIds} onToggleLabel={onUpdateLabels} position={{ top: 35, left: -100 }} />
-             </div>
-        </div>
-      </div>
-
-      {titleMenuPosition && !isEditingTitle && <ContextMenu position={titleMenuPosition} onClose={() => setTitleMenuPosition(null)} onAction={handleTitleMenuAction} currentStatus={session.status} availableLabels={availableLabels} currentLabelIds={session.labelIds} isFlagged={session.isFlagged} />}
-
-      <div className="flex-1 overflow-y-auto px-4 pt-20 pb-48" ref={scrollRef}>
-        <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex-1 overflow-y-auto px-4 pt-20 pb-48 custom-scrollbar" ref={scrollRef}>
+        <div className="max-w-3xl mx-auto space-y-8">
             {messages.map((msg, index) => {
                 const isLast = index === messages.length - 1;
                 const isGenerating = isLast && isLoading && msg.role === 'model';
@@ -305,24 +330,25 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 const isQuotaError = msg.role === 'model' && msg.content.includes("Quota Exceeded");
 
                 return (
-                  <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                  <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-message`}>
                     {msg.role === 'user' ? (
                          <div className="flex flex-col gap-2 max-w-[85%] items-end" onContextMenu={(e) => handleMessageContextMenu(e, msg.id)}>
                              {msg.attachments && msg.attachments.length > 0 && (
                                  <div className="flex flex-wrap gap-2 justify-end">
                                      {msg.attachments.map((att, i) => (
-                                         <div key={i} className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded p-2 text-xs flex items-center gap-2 text-[var(--text-main)]">
-                                             <span>📎 {att.name}</span>
+                                         <div key={i} className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg p-2 md:p-2.5 text-[11px] md:text-xs flex items-center gap-2 text-[var(--text-main)] shadow-sm hover:shadow-md transition-shadow">
+                                             <span className="opacity-70 text-[14px]">📎</span>
+                                             <span className="font-medium truncate max-w-[100px]">{att.name}</span>
                                          </div>
                                      ))}
                                  </div>
                              )}
                              {editingMessageId === msg.id ? (
-                                 <div className="w-full min-w-[200px] flex flex-col gap-2 bg-[var(--bg-elevated)] p-2 rounded-xl border border-[var(--border)] shadow-xl">
+                                 <div className="w-full min-w-[240px] md:min-w-[280px] flex flex-col gap-3 bg-[var(--bg-elevated)] p-4 rounded-2xl border border-[var(--border)] shadow-2xl animate-in fade-in zoom-in-95">
                                      <textarea 
                                         autoFocus
                                         defaultValue={msg.content}
-                                        className="w-full bg-transparent border-none text-[var(--text-main)] text-sm resize-none focus:ring-0 outline-none"
+                                        className="w-full bg-transparent border-none text-[var(--text-main)] text-[14px] md:text-[15px] leading-relaxed resize-none focus:ring-0 outline-none min-h-[100px]"
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter' && !e.shiftKey) {
                                                 e.preventDefault();
@@ -331,50 +357,72 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                             } else if (e.key === 'Escape') setEditingMessageId(null);
                                         }}
                                      />
-                                     <div className="flex justify-end gap-2 p-1">
-                                         <button onClick={() => setEditingMessageId(null)} className="text-[10px] text-[var(--text-dim)] hover:text-white px-2 py-1 rounded">Cancel</button>
+                                     <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border)]">
+                                         <button onClick={() => setEditingMessageId(null)} className="text-[12px] font-medium text-[var(--text-dim)] hover:text-white px-3 py-1.5 rounded-lg transition-colors">Cancel</button>
                                          <button onClick={(e) => {
                                              const val = (e.currentTarget.parentElement?.previousElementSibling as HTMLTextAreaElement).value;
                                              onSendMessage(val, msg.attachments || [], false, session.mode || 'explore', msg.id);
                                              setEditingMessageId(null);
-                                         }} className="text-[10px] bg-white text-black font-bold px-3 py-1 rounded">Save & Re-run</button>
+                                         }} className="text-[12px] bg-white text-black font-bold px-4 py-1.5 rounded-lg hover:bg-gray-100 transition-colors shadow-lg active:scale-95">Save</button>
                                      </div>
                                  </div>
                              ) : (
-                                <div className="bg-[var(--bg-elevated)] text-[var(--text-main)] p-3 px-4 rounded-xl text-[15px] shadow-sm cursor-default hover:bg-[var(--border)] transition-colors">
+                                <div className="bg-[var(--bg-elevated)] text-[var(--text-main)] p-3 px-4 md:p-3.5 md:px-5 rounded-2xl text-[14px] md:text-[15px] leading-relaxed shadow-sm cursor-default hover:bg-[var(--border)] transition-colors border border-transparent hover:border-[var(--accent)]/10">
                                     {msg.content}
                                 </div>
                              )}
                          </div>
                     ) : (
-                        <div className="w-full text-[var(--text-main)] leading-7 text-[15px]">
-                            {showProcessing && <div className="flex items-center gap-2 text-[var(--text-dim)] text-sm animate-pulse ml-1 mb-2"><Loader2 className="w-4 h-4 animate-spin" /><span>Processing request...</span></div>}
+                        <div className="w-full text-[var(--text-main)] leading-relaxed text-[14px] md:text-[15px] flex flex-col gap-1 group/msg">
+                            {showProcessing && (
+                                <div className="flex items-center gap-3 text-[var(--text-dim)] text-xs md:text-sm animate-pulse ml-1 mb-4 bg-[var(--bg-elevated)]/50 w-fit px-4 py-2 rounded-full border border-[var(--border)]">
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    <span className="font-medium">Shuper is analyzing...</span>
+                                </div>
+                            )}
                             {msg.thoughtProcess && <ThinkingBlock thoughtProcess={msg.thoughtProcess} isGenerating={isGenerating} />}
                             {isQuotaError ? (
-                                <div className="bg-red-900/20 border border-red-900/50 rounded-lg p-4 flex items-start gap-3 text-red-200">
-                                    <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                                <div className="bg-red-900/10 border border-red-900/40 rounded-2xl p-4 md:p-5 flex items-start gap-3 md:gap-4 text-red-200 animate-in fade-in slide-in-from-top-1 duration-500">
+                                    <div className="p-2 bg-red-900/20 rounded-full">
+                                        <AlertTriangle className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0" />
+                                    </div>
                                     <div>
-                                        <h4 className="font-medium mb-1">API Quota Exceeded</h4>
-                                        <p className="text-sm opacity-80 mb-3">Add your own key in settings to continue.</p>
+                                        <h4 className="font-bold mb-1 text-[15px] md:text-[16px]">API Quota Exceeded</h4>
+                                        <p className="text-[13px] md:text-sm text-red-200/70 leading-relaxed mb-4">Limit reached. Integrate your own API key in Settings to continue.</p>
+                                        <button onClick={() => onChangeView('settings')} className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-xl text-[11px] md:text-xs transition-all shadow-lg active:scale-95">Go to Settings</button>
                                     </div>
                                 </div>
                             ) : msg.content && (
-                                <div className="markdown-body">
+                                <div className="markdown-body transition-opacity duration-300 overflow-x-auto">
                                     <Markdown
                                         components={{
                                             code({node, inline, className, children, ...props}: any) {
                                                 const match = /language-(\w+)/.exec(className || '')
+                                                const codeString = String(children).replace(/\n$/, '');
+                                                const codeId = `code-${msg.id}-${node?.position?.start?.line || index}`;
+                                                
                                                 return !inline && match ? (
-                                                    <SyntaxHighlighter
-                                                        style={vscDarkPlus}
-                                                        language={match[1]}
-                                                        PreTag="div"
-                                                        customStyle={{ margin: 0, borderRadius: '0.5rem', background: '#1e1e1e', border: '1px solid var(--border)' }}
-                                                        {...props}
-                                                    >
-                                                        {String(children).replace(/\n$/, '')}
-                                                    </SyntaxHighlighter>
-                                                ) : ( <code className={className} {...props}>{children}</code> )
+                                                    <div className="group/code relative my-4">
+                                                        <div className="absolute right-2 top-2 opacity-0 group-hover/code:opacity-100 transition-opacity z-10 flex gap-2">
+                                                            <button 
+                                                                onClick={() => handleCopyText(codeString, codeId)} 
+                                                                className={`p-1.5 rounded-lg border transition-all active:scale-90 flex items-center gap-1.5 ${copiedId === codeId ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-[#2A2A2A] border-[#333] text-white/50 hover:bg-[#333] hover:text-white'}`}
+                                                            >
+                                                                {copiedId === codeId ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                                                                {copiedId === codeId && <span className="text-[10px] font-bold uppercase">Copied</span>}
+                                                            </button>
+                                                        </div>
+                                                        <SyntaxHighlighter
+                                                            style={vscDarkPlus}
+                                                            language={match[1]}
+                                                            PreTag="div"
+                                                            customStyle={{ margin: 0, padding: '1rem', borderRadius: '0.75rem', background: '#0D0D0D', border: '1px solid var(--border)', fontSize: '12px', md: '13.5px', lineHeight: '1.6' }}
+                                                            {...props}
+                                                        >
+                                                            {codeString}
+                                                        </SyntaxHighlighter>
+                                                    </div>
+                                                ) : ( <code className={`${className} bg-[var(--bg-elevated)] px-1.5 py-0.5 rounded text-[0.9em] border border-[var(--border)]`} {...props}>{children}</code> )
                                             }
                                         }}
                                     >
@@ -382,16 +430,39 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                     </Markdown>
                                 </div>
                             )}
-                            {!isGenerating && msg.content && !isQuotaError && <div className="flex items-center gap-4 mt-2"><button className="text-[var(--text-dim)] hover:text-[var(--text-muted)] transition-colors"><Copy className="w-3.5 h-3.5" /></button></div>}
+                            {!isGenerating && msg.content && !isQuotaError && (
+                                <div className="flex items-center gap-4 mt-2 md:mt-4 opacity-100 md:opacity-0 group-hover/msg:opacity-100 transition-opacity">
+                                    <button 
+                                        onClick={() => handleCopyText(msg.content, msg.id)} 
+                                        className={`flex items-center gap-1.5 transition-all group/btn ${copiedId === msg.id ? 'text-emerald-400' : 'text-[var(--text-dim)] hover:text-white'}`}
+                                    >
+                                        {copiedId === msg.id ? <Check className="w-3 h-3 md:w-3.5 md:h-3.5" /> : <Copy className="w-3 h-3 md:w-3.5 md:h-3.5 group-hover/btn:scale-110" />}
+                                        <span className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest">{copiedId === msg.id ? 'Copied' : 'Copy'}</span>
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                   </div>
                 );
             })}
+            
+            {isLoading && !messages[messages.length - 1]?.content && !messages[messages.length - 1]?.thoughtProcess && (
+                <div className="flex gap-4 animate-in fade-in duration-500">
+                    <div className="w-8 h-8 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center animate-pulse">
+                        <Bot className="w-4 h-4 text-[var(--accent)]" />
+                    </div>
+                    <div className="space-y-2 flex-1">
+                        <div className="h-4 bg-[var(--bg-elevated)] rounded-full w-[40%] animate-pulse"></div>
+                        <div className="h-4 bg-[var(--bg-elevated)] rounded-full w-[60%] animate-pulse delay-75"></div>
+                    </div>
+                </div>
+            )}
         </div>
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[var(--bg-tertiary)] via-[var(--bg-tertiary)] to-transparent z-20">
+      {/* Input Area Overlay */}
+      <div className="absolute bottom-0 left-0 right-0 p-3 md:p-6 bg-gradient-to-t from-[var(--bg-tertiary)] via-[var(--bg-tertiary)] to-transparent z-40">
            <InputArea 
                 onSend={onSendMessage} 
                 onStop={onStopGeneration}
@@ -414,6 +485,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 onUpdateMode={onUpdateMode}
            />
       </div>
+
+      {titleMenuPosition && !isEditingTitle && <ContextMenu position={titleMenuPosition} onClose={() => setTitleMenuPosition(null)} onAction={handleTitleMenuAction} currentStatus={session.status} availableLabels={availableLabels} currentLabelIds={session.labelIds} isFlagged={session.isFlagged} />}
     </div>
   );
 };

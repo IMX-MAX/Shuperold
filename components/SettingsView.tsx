@@ -304,12 +304,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           </div>
                           
                           <div className="space-y-4">
-                              <ApiKeyInput 
-                                  label="Google Gemini API Key" 
-                                  value={settings.apiKeys.gemini}
-                                  onChange={(v) => updateApiKey('gemini', v)}
-                                  placeholder="AIzaSy..."
-                              />
+                              {/* @google/genai guidelines: MUST NOT generate UI elements for managing the Google Gemini API key */}
                               <ApiKeyInput 
                                   label="OpenRouter API Key" 
                                   value={settings.apiKeys.openRouter}

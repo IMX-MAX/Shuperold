@@ -9,7 +9,8 @@ export const generateSessionTitle = async (
   currentTitle: string,
   _apiKey?: string 
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  // @google/genai guidelines: Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     const chatHistory = history.slice(-6).map(h => ({
       role: h.role === 'model' ? 'model' : 'user',
@@ -30,6 +31,7 @@ export const generateSessionTitle = async (
       }
     });
     
+    // @google/genai guidelines: Use response.text property directly
     return response.text?.trim() || currentTitle;
   } catch (error) {
     console.error("Title generation error:", error);
@@ -76,7 +78,8 @@ export const sendMessageToGemini = async (
       );
   }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  // @google/genai guidelines: Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
     const currentParts: any[] = [];
@@ -103,10 +106,15 @@ export const sendMessageToGemini = async (
         systemInstruction: finalSystemInstruction.trim() || undefined,
     };
 
-    if (mode === 'execute') {
-        config.thinkingConfig = { thinkingBudget: 32768 }; 
-    } else if (useThinking) {
-        config.thinkingConfig = { thinkingBudget: 16000 };
+    // @google/genai guidelines: Thinking Config is only available for Gemini 3 and 2.5 series models.
+    const isThinkingSupported = actualModel.includes('gemini-3') || actualModel.includes('gemini-2.5');
+
+    if (isThinkingSupported) {
+        if (mode === 'execute') {
+            config.thinkingConfig = { thinkingBudget: 32768 }; 
+        } else if (useThinking) {
+            config.thinkingConfig = { thinkingBudget: 16000 };
+        }
     }
 
     const responseStream = await ai.models.generateContentStream({
@@ -119,6 +127,7 @@ export const sendMessageToGemini = async (
     let fullText = "";
     for await (const chunk of responseStream) {
       if (signal?.aborted) throw new Error("AbortError");
+      // @google/genai guidelines: Use chunk.text property directly
       const chunkText = chunk.text || "";
       fullText += chunkText;
       if (onUpdate) onUpdate(fullText, undefined); 

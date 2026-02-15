@@ -75,21 +75,53 @@
       .markdown-body pre { margin-bottom: 0.75em; border-radius: 0.5em; overflow: hidden; }
       .markdown-body code { background: var(--bg-elevated); padding: 0.2em 0.4em; border-radius: 0.25em; font-size: 0.9em; color: var(--accent); }
       .markdown-body pre code { background: transparent; padding: 0; color: inherit; }
+
+      /* Animation definitions */
+      @keyframes messageIn {
+        from { opacity: 0; transform: translateY(12px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      @keyframes slideInLeft {
+        from { opacity: 0; transform: translateX(-10px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+
+      @keyframes slideInTop {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      @keyframes zoomIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+
+      .animate-message { animation: messageIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+      .animate-in { animation-duration: 0.3s; animation-fill-mode: forwards; }
+      .fade-in { animation-name: fadeIn; }
+      .zoom-in-95 { animation-name: zoomIn; }
+      .slide-in-from-bottom-2 { animation-name: messageIn; }
+      .slide-in-from-left-2 { animation-name: slideInLeft; }
+      .slide-in-from-top-1 { animation-name: slideInTop; }
     </style>
   <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@19.0.0",
+    "react/": "https://esm.sh/react@19.0.0/",
     "react-dom": "https://esm.sh/react-dom@19.0.0",
-    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "react-dom/": "https://esm.sh/react-dom@19.0.0/",
     "lucide-react": "https://esm.sh/lucide-react@0.460.0",
     "@google/genai": "https://esm.sh/@google/genai@1.41.0",
     "react-markdown": "https://esm.sh/react-markdown@9.0.1",
     "react-syntax-highlighter": "https://esm.sh/react-syntax-highlighter@15.5.0",
-    "react-syntax-highlighter/dist/esm/styles/prism": "https://esm.sh/react-syntax-highlighter@15.5.0/dist/esm/styles/prism",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react-syntax-highlighter/": "https://esm.sh/react-syntax-highlighter@^16.1.0/"
+    "react-syntax-highlighter/": "https://esm.sh/react-syntax-highlighter@15.5.0/"
   }
 }
 </script>

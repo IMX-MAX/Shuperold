@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Inbox, X, Flag, Tag, Archive } from 'lucide-react';
+import { Search, Inbox, X, Flag, Tag, Archive, Menu } from 'lucide-react';
 import { Session, SessionStatus, Label } from '../types';
 import { STATUS_CONFIG, StatusSelector } from './StatusSelector';
 import { ContextMenu } from './ContextMenu';
@@ -19,6 +19,7 @@ interface SessionListProps {
   onNewSession: () => void;
   onToggleFlag: (sessionId: string) => void;
   currentFilter: string;
+  onOpenSidebar?: () => void;
 }
 
 export const SessionList: React.FC<SessionListProps> = ({ 
@@ -35,7 +36,8 @@ export const SessionList: React.FC<SessionListProps> = ({
     sessionLoading,
     onNewSession,
     onToggleFlag,
-    currentFilter
+    currentFilter,
+    onOpenSidebar
 }) => {
   const [statusMenuOpenId, setStatusMenuOpenId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<React.CSSProperties | undefined>(undefined);
@@ -89,8 +91,6 @@ export const SessionList: React.FC<SessionListProps> = ({
               onUpdateSessionStatus(sessionId, newStatus);
           }
       } else if (action === 'rename') {
-          // Inline renaming is handled via ChatInterface's title state or side effect
-          // This call triggers the rename flow if needed
           const session = sessions.find(s => s.id === sessionId);
           if (session) {
              onRenameSession(sessionId, session.title); 
@@ -123,14 +123,21 @@ export const SessionList: React.FC<SessionListProps> = ({
   };
 
   return (
-    <div className="w-[300px] flex-shrink-0 bg-[var(--bg-secondary)] border-r border-[var(--border)] flex flex-col h-full relative z-10 transition-all duration-300">
-      <div className="h-14 flex items-center px-4 border-b border-transparent relative overflow-hidden">
+    <div className="w-full h-full bg-[var(--bg-secondary)] flex flex-col relative z-10 transition-all duration-300">
+      <div className="h-14 flex items-center px-4 border-b border-[var(--border)] relative overflow-hidden">
          <div 
             className={`absolute left-0 right-0 px-4 flex items-center justify-between transition-all duration-300 transform ${
                 isSearchOpen ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'
             }`}
          >
-             <span className="font-medium text-[var(--text-main)] text-sm">{getHeaderTitle()}</span>
+             <div className="flex items-center gap-3">
+                 {onOpenSidebar && (
+                     <button onClick={onOpenSidebar} className="md:hidden p-1 rounded hover:bg-[var(--bg-elevated)]">
+                         <Menu className="w-5 h-5 text-[var(--text-main)]" />
+                     </button>
+                 )}
+                 <span className="font-medium text-[var(--text-main)] text-sm">{getHeaderTitle()}</span>
+             </div>
              <Search 
                 className="w-4 h-4 text-[var(--text-dim)] cursor-pointer hover:text-[var(--text-main)] transition-colors" 
                 onClick={() => setIsSearchOpen(true)}
@@ -170,7 +177,7 @@ export const SessionList: React.FC<SessionListProps> = ({
                     </div>
                     <h3 className="text-sm font-medium text-[var(--text-main)] mb-1">No sessions found</h3>
                     <p className="text-xs text-[var(--text-dim)] mb-6 leading-relaxed max-w-[200px]">
-                        {searchQuery ? `No results for "${searchQuery}"` : "Create a new session to get started with your agent."}
+                        {searchQuery ? `No results for "${searchQuery}"` : "Create a new session to get started."}
                     </p>
                     <button 
                         onClick={onNewSession}
@@ -219,21 +226,6 @@ export const SessionList: React.FC<SessionListProps> = ({
                                                     {session.isFlagged && (
                                                         <Flag className="w-3 h-3 text-red-500 fill-red-500 ml-1" />
                                                     )}
-                                                    {session.labelIds.length > 0 && (
-                                                        <div className="flex items-center gap-1 flex-shrink-0 ml-1">
-                                                            {session.labelIds.map(labelId => {
-                                                                const label = availableLabels.find(l => l.id === labelId);
-                                                                if (!label) return null;
-                                                                return (
-                                                                    <div 
-                                                                        key={labelId} 
-                                                                        className="w-1.5 h-1.5 rounded-full" 
-                                                                        style={{ backgroundColor: label.color }}
-                                                                    ></div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    )}
                                                 </div>
                                                 <div className="flex items-center justify-between mt-1.5">
                                                      <div className="flex items-center gap-2">
@@ -242,7 +234,7 @@ export const SessionList: React.FC<SessionListProps> = ({
                                                                 New
                                                              </span>
                                                          )}
-                                                         <span className="text-[10px] bg-[var(--bg-tertiary)] text-[var(--text-muted)] px-1.5 py-0.5 rounded border border-[var(--border)] group-hover:border-[var(--text-dim)] transition-colors capitalize">{session.mode}</span>
+                                                         <span className="text-[10px] bg-[var(--bg-tertiary)] text-[var(--text-muted)] px-1.5 py-0.5 rounded border border-[var(--border)] transition-colors capitalize">{session.mode}</span>
                                                      </div>
                                                      <span className="text-[11px] text-[var(--text-dim)] font-medium">
                                                         {session.timestamp}

@@ -12,7 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   HelpCircle,
-  Cpu
+  Cpu,
+  X
 } from 'lucide-react';
 import { STATUS_CONFIG } from './StatusSelector';
 import { SessionStatus, Label } from '../types';
@@ -31,6 +32,7 @@ interface SidebarNavigationProps {
     onChangeView: (view: 'chat' | 'agents' | 'settings') => void;
     workspaceName: string;
     onShowWhatsNew: () => void;
+    onCloseMobile?: () => void;
 }
 
 export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({ 
@@ -46,7 +48,8 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
     currentView,
     onChangeView,
     workspaceName,
-    onShowWhatsNew
+    onShowWhatsNew,
+    onCloseMobile
 }) => {
   const [isStatusExpanded, setIsStatusExpanded] = useState(false);
   const [isLabelsExpanded, setIsLabelsExpanded] = useState(false);
@@ -57,28 +60,35 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
   ];
 
   return (
-    <div className="w-[260px] flex-shrink-0 bg-[var(--bg-secondary)]/95 backdrop-blur-xl border-r border-[var(--border)] flex flex-col h-full text-[var(--text-muted)] text-sm z-20 transition-all duration-300">
+    <div className="w-[280px] md:w-[260px] flex-shrink-0 bg-[var(--bg-secondary)]/95 backdrop-blur-xl border-r border-[var(--border)] flex flex-col h-full text-[var(--text-muted)] text-sm z-20 transition-all duration-300">
       {/* Top Header / Logo / History */}
       <div className="h-14 flex items-center px-4 justify-between">
         <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => onChangeView('chat')}>
-            {/* Removed SH Box */}
             <span className="font-semibold text-[var(--text-main)] text-base tracking-tight">Shuper</span>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1 items-center">
           <button 
             disabled={!canBack}
             onClick={onBack}
-            className={`p-1 rounded hover:bg-[var(--bg-elevated)] transition-colors ${canBack ? 'text-[var(--text-main)] cursor-pointer' : 'text-[var(--text-dim)] cursor-default'}`}
+            className={`p-1 rounded hover:bg-[var(--bg-elevated)] transition-colors hidden md:block ${canBack ? 'text-[var(--text-main)] cursor-pointer' : 'text-[var(--text-dim)] cursor-default'}`}
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button 
              disabled={!canForward}
              onClick={onForward}
-             className={`p-1 rounded hover:bg-[var(--bg-elevated)] transition-colors ${canForward ? 'text-[var(--text-main)] cursor-pointer' : 'text-[var(--text-dim)] cursor-default'}`}
+             className={`p-1 rounded hover:bg-[var(--bg-elevated)] transition-colors hidden md:block ${canForward ? 'text-[var(--text-main)] cursor-pointer' : 'text-[var(--text-dim)] cursor-default'}`}
           >
             <ChevronRight className="w-4 h-4" />
           </button>
+          {onCloseMobile && (
+              <button 
+                onClick={onCloseMobile}
+                className="p-1 rounded hover:bg-[var(--bg-elevated)] md:hidden text-[var(--text-main)]"
+              >
+                <X className="w-5 h-5" />
+              </button>
+          )}
         </div>
       </div>
 
@@ -263,7 +273,7 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
       <div className="mt-auto px-3 pb-4">
         <div className="flex items-center justify-between px-2 py-2 text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer transition-colors rounded-md hover:bg-[var(--bg-elevated)]">
             <div className="flex items-center gap-2">
-                <div className="w-5 h-5 bg-[var(--text-muted)] rounded-full text-[var(--bg-primary)] flex items-center justify-center text-xs font-bold uppercase">
+                <div className="w-5 h-5 bg-[var(--text-muted)] rounded-full text-[var(--bg-primary)] flex items-center justify-center text-[10px] font-bold uppercase">
                     {workspaceName.substring(0, 1)}
                 </div>
                 <span className="text-sm truncate max-w-[140px]">{workspaceName}</span>
