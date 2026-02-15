@@ -103,7 +103,7 @@ const ThinkingBlock = ({ steps, isGenerating }: { steps: string[], isGenerating?
                 <div className={`p-1 rounded-md border border-[var(--border)] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
                     <ChevronDown className="w-3 h-3" />
                 </div>
-                <span>{isGenerating ? 'Synthesizing Plan' : `Technical Plan (${steps.length} Phases)`}</span>
+                <span>{isGenerating ? 'Working on a plan' : `Steps Taken (${steps.length})`}</span>
             </button>
             
             <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
@@ -117,7 +117,7 @@ const ThinkingBlock = ({ steps, isGenerating }: { steps: string[], isGenerating?
                         <div className="flex items-start gap-4 text-[var(--text-dim)] py-2">
                             <div className="mt-1 flex-shrink-0"><WaveLoader /></div>
                             <div className="flex flex-col gap-1">
-                                <span className="font-bold tracking-widest uppercase text-[10px] text-[var(--text-main)] italic">Awaiting neural output...</span>
+                                <span className="font-bold tracking-widest uppercase text-[10px] text-[var(--text-main)] italic">Waiting for response...</span>
                             </div>
                         </div>
                     )}
@@ -154,10 +154,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   }, [messages, isLoading]);
 
-  // Prevent browser context menu globally for this component's area
   useEffect(() => {
     const handleGlobalContextMenu = (e: MouseEvent) => {
-        // Prevent default browser menu unless it's on an input or textarea
         if (!(e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement)) {
             e.preventDefault();
         }
@@ -283,7 +281,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const headerLabelText = session.labelIds.length > 0 
     ? session.labelIds.map(id => availableLabels.find(l => l.id === id)?.name).filter(Boolean).join(', ')
-    : 'triage';
+    : 'No tags';
 
   return (
     <div 
@@ -314,10 +312,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         className="absolute z-50 w-48 bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl py-1.5 text-[13px] animate-in fade-in zoom-in-95 duration-100 origin-top-left"
                         style={{ top: titleMenuPosition.y, left: titleMenuPosition.x }}
                       >
-                          <div onClick={() => { handleDoubleclickTitle(); setTitleMenuPosition(null); }} className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1"><Edit2 className="w-4 h-4" /><span>Rename Session</span></div>
-                          <div onClick={() => { onRegenerateTitle(session.id); setTitleMenuPosition(null); }} className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1"><RefreshCcw className="w-4 h-4" /><span>Regenerate Title</span></div>
+                          <div onClick={() => { handleDoubleclickTitle(); setTitleMenuPosition(null); }} className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1"><Edit2 className="w-4 h-4" /><span>Rename Chat</span></div>
+                          <div onClick={() => { onRegenerateTitle(session.id); setTitleMenuPosition(null); }} className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1"><RefreshCcw className="w-4 h-4" /><span>Rewrite Title</span></div>
                           <div className="h-[1px] bg-[#333] my-1 mx-2" />
-                          <div onClick={() => { onDeleteSession(); setTitleMenuPosition(null); }} className="flex items-center gap-3 px-3 py-2 hover:bg-red-500/10 text-red-400 cursor-pointer rounded-lg mx-1"><Trash2 className="w-4 h-4" /><span>Delete Session</span></div>
+                          <div onClick={() => { onDeleteSession(); setTitleMenuPosition(null); }} className="flex items-center gap-3 px-3 py-2 hover:bg-red-500/10 text-red-400 cursor-pointer rounded-lg mx-1"><Trash2 className="w-4 h-4" /><span>Delete Chat</span></div>
                       </div>
                   </>
               )}
@@ -340,6 +338,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
                <div className="w-[1px] h-4 bg-[var(--border)] mx-1" />
                <button 
+                  id="tour-tasks-toggle"
                   onClick={() => setIsTaskPanelOpen(!isTaskPanelOpen)}
                   className={`p-1.5 rounded-lg transition-all text-[var(--text-dim)] hover:text-white ${isTaskPanelOpen ? 'bg-[var(--bg-elevated)]' : ''}`}
                 >
@@ -352,9 +351,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           {!hasAnyKey && (
               <div className="max-w-xl mx-auto mt-20 p-8 rounded-3xl bg-[var(--bg-elevated)] border border-[var(--border)] text-center animate-in fade-in zoom-in-95 duration-500 shadow-2xl">
                   <div className="w-16 h-16 rounded-2xl bg-neutral-500/10 flex items-center justify-center mx-auto mb-6"><Key className="w-8 h-8 text-[var(--text-main)]" /></div>
-                  <h2 className="text-xl font-bold mb-3 text-white">System Locked</h2>
-                  <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-8">Workspace functionality requires a valid AI provider handshake. Please connect your API keys.</p>
-                  <button onClick={() => onChangeView('settings')} className="px-8 py-3.5 bg-white text-black font-bold rounded-2xl hover:bg-gray-100 transition-all active:scale-95 shadow-xl">Initialize Handshake</button>
+                  <h2 className="text-xl font-bold mb-3 text-white">Setup Needed</h2>
+                  <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-8">You need to add your API keys to start chatting. Head over to settings to connect.</p>
+                  <button onClick={() => onChangeView('settings')} className="px-8 py-3.5 bg-white text-black font-bold rounded-2xl hover:bg-gray-100 transition-all active:scale-95 shadow-xl">Set up API Keys</button>
               </div>
           )}
           
@@ -364,7 +363,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       const isLast = index === messages.length - 1;
                       const isGenerating = isLast && isLoading && msg.role === 'model';
                       const { planSteps, mainContent } = processModelOutput(msg.content, session.mode || 'explore');
-                      const showStandaloneThinking = isGenerating && planSteps.length === 0 && !mainContent && session.mode === 'execute';
+                      
+                      const showInitialLoader = isGenerating && planSteps.length === 0 && !mainContent;
 
                       return (
                       <div key={msg.id} className={`flex flex-col gap-4 ${msg.role === 'user' ? 'items-end' : 'items-start'} animate-message`}>
@@ -384,9 +384,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                               </div>
                           ) : (
                               <div className="w-full text-[var(--text-main)] leading-relaxed text-[15px] flex flex-col gap-1 group/msg">
-                                  {showStandaloneThinking && (
+                                  {showInitialLoader && (
                                       <div className="flex items-center gap-4 text-[var(--text-main)] text-xs md:text-sm animate-pulse ml-1 mb-8 py-2">
-                                          <WaveLoader /><span className="font-bold tracking-widest uppercase text-[11px] text-[var(--text-muted)] italic">Awaiting technical synthesis...</span>
+                                          <WaveLoader />
+                                          <span className="font-bold tracking-widest uppercase text-[11px] text-[var(--text-muted)] italic">
+                                            Thinking...
+                                          </span>
                                       </div>
                                   )}
                                   {session.mode === 'execute' && (planSteps.length > 0 || isGenerating) && <ThinkingBlock steps={planSteps} isGenerating={isGenerating} />}
@@ -436,8 +439,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     className="fixed z-[120] w-44 bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl py-1.5 text-[13px] animate-in fade-in zoom-in-95 duration-100 origin-top-left"
                     style={{ top: messageContextMenu.y, left: messageContextMenu.x }}
                 >
-                    <div onClick={() => handleEditMessageAction(messageContextMenu.messageId)} className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1"><Edit2 className="w-3.5 h-3.5" /><span>Edit Message</span></div>
-                    <div onClick={() => { handleCopyText(messages.find(m => m.id === messageContextMenu.messageId)?.content || '', messageContextMenu.messageId); setMessageContextMenu(null); }} className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1"><Copy className="w-3.5 h-3.5" /><span>Copy Text</span></div>
+                    <div onClick={() => handleEditMessageAction(messageContextMenu.messageId)} className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1"><Edit2 className="w-3.5 h-3.5" /><span>Edit</span></div>
+                    <div onClick={() => { handleCopyText(messages.find(m => m.id === messageContextMenu.messageId)?.content || '', messageContextMenu.messageId); setMessageContextMenu(null); }} className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1"><Copy className="w-3.5 h-3.5" /><span>Copy</span></div>
                 </div>
             </>
         )}

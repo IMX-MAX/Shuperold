@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronRight, ChevronLeft, X, Rocket, Zap, Sparkles, Settings } from 'lucide-react';
+import { ChevronRight, ChevronLeft, X, Rocket, Zap, Sparkles, Settings, MessageSquare, Target, PlusCircle, ListTodo, Key } from 'lucide-react';
 
 interface TourStep {
   id: string;
@@ -12,45 +12,38 @@ interface TourStep {
 const TOUR_STEPS: TourStep[] = [
   {
     id: 'welcome',
-    targetId: '', // Center
-    title: 'Welcome to Shuper',
-    description: "Shuper is your high-performance AI execution workspace. Let's take a quick look around.",
+    targetId: '', 
+    title: 'Ready to start?',
+    description: "Welcome! I'm here to help you get things done. Let me show you how to use this space.",
     icon: Rocket
-  },
-  {
-    id: 'sidebar',
-    targetId: 'tour-sidebar',
-    title: 'Your Command Center',
-    description: 'Switch between active chats, specialized AI agents, and workspace settings here.',
-    icon: Zap
   },
   {
     id: 'new-chat',
     targetId: 'tour-new-chat',
-    title: 'Instant Sessions',
-    description: 'Create a new conversation anytime. Shuper organizes them by status and category automatically.',
-    icon: Sparkles
+    title: 'Starting fresh',
+    description: 'You can start a new conversation whenever you want. Everything stays organized here.',
+    icon: PlusCircle
   },
   {
     id: 'mode',
-    targetId: 'tour-input-area', // Target entire box instead of just selector
-    title: 'Choose Your Mode',
-    description: 'Explore mode is for standard talk. Execute mode provides advanced technical planning and reasoning. Try switching now!',
-    icon: Zap
+    targetId: 'tour-input-area', 
+    title: 'Operation Modes',
+    description: 'Explore mode is great for talking. Execute mode is better when you need a plan for a project.',
+    icon: Target
   },
   {
-    id: 'model',
-    targetId: 'tour-model-selector',
-    title: 'AI Providers',
-    description: 'Switch between Gemini, DeepSeek, or your own custom agents on the fly.',
-    icon: Sparkles
+    id: 'tasks',
+    targetId: 'tour-tasks-toggle',
+    title: 'Keep track',
+    description: 'Use the task panel on the right to stay focused on your goals during a chat.',
+    icon: ListTodo
   },
   {
     id: 'settings',
     targetId: 'tour-settings',
-    title: 'Connect Your Keys',
-    description: "Don't forget to add your API keys in Settings to unlock the full power of Shuper.",
-    icon: Settings
+    title: 'Connecting AI',
+    description: "To start talking, add your API keys in the settings. It only takes a second.",
+    icon: Key
   }
 ];
 
@@ -66,10 +59,9 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ onComplete, onSkip, on
 
   const currentStep = TOUR_STEPS[currentStepIndex];
 
-  // Logic to ensure UI is in correct state for specific steps
   useEffect(() => {
-    if (currentStep.id === 'mode' && onNewSession) {
-        // Create a session so the input area and mode selector are visible
+    // Ensure the app is in a state where elements exist
+    if ((currentStep.id === 'mode' || currentStep.id === 'tasks') && onNewSession) {
         onNewSession();
     }
   }, [currentStepIndex]);
@@ -86,14 +78,13 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ onComplete, onSkip, on
       }
     };
 
-    // Use a small timeout to let the UI react to onNewSession if needed
-    const timeout = setTimeout(updateHighlight, 50);
+    // Use a small loop or mutation observer for better reliability if needed, 
+    // but a few timeouts usually handle the React render cycle transitions.
+    const timer = setInterval(updateHighlight, 100);
     window.addEventListener('resize', updateHighlight);
-    window.addEventListener('scroll', updateHighlight, true);
     return () => {
-      clearTimeout(timeout);
+      clearInterval(timer);
       window.removeEventListener('resize', updateHighlight);
-      window.removeEventListener('scroll', updateHighlight, true);
     };
   }, [currentStepIndex, currentStep.targetId]);
 
@@ -113,7 +104,7 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ onComplete, onSkip, on
 
   const spotlightStyle = useMemo(() => {
     if (!highlightRect) return { display: 'none' };
-    const padding = 12; // Slightly more padding for the "box" look
+    const padding = 12;
     return {
       top: highlightRect.top - padding,
       left: highlightRect.left - padding,
@@ -123,26 +114,25 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ onComplete, onSkip, on
   }, [highlightRect]);
 
   const cardPosition = useMemo(() => {
-    // If no target (Welcome step), center it
     if (!highlightRect) {
       return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
     }
 
     const margin = 24;
     const cardWidth = 320;
-    const cardHeight = 240; // Estimated max height
+    const cardHeight = 220; 
     const screenWidth = window.innerWidth;
     const screenHeight = window.innerHeight;
 
     let top = highlightRect.bottom + margin;
     let left = highlightRect.left + highlightRect.width / 2;
 
-    // Vertical Positioning Check: If card goes off bottom, move to top
+    // Reposition above if too close to bottom
     if (top + cardHeight > screenHeight - margin) {
       top = highlightRect.top - cardHeight - margin;
     }
 
-    // Horizontal Positioning Check: Ensure left alignment stays within screen
+    // Keep card on screen horizontally
     const halfWidth = cardWidth / 2;
     if (left - halfWidth < margin) {
       left = halfWidth + margin;
@@ -150,22 +140,17 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ onComplete, onSkip, on
       left = screenWidth - halfWidth - margin;
     }
 
-    // Final safety clamp for top
-    top = Math.max(margin, Math.min(top, screenHeight - cardHeight - margin));
-
     return { 
-        top: `${top}px`, 
+        top: `${Math.max(margin, top)}px`, 
         left: `${left}px`, 
         transform: 'translateX(-50%)',
-        maxHeight: `${screenHeight - margin * 2}px`
     };
   }, [highlightRect]);
 
   return (
     <div className="fixed inset-0 z-[200] overflow-hidden pointer-events-auto">
-      {/* Backdrop with spotlight cutout */}
       <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-[2px] transition-all duration-500"
+        className="absolute inset-0 bg-black/70 backdrop-blur-[2px] transition-all duration-500"
         style={{
           clipPath: highlightRect 
             ? `polygon(0% 0%, 0% 100%, ${highlightRect.left - 12}px 100%, ${highlightRect.left - 12}px ${highlightRect.top - 12}px, ${highlightRect.right + 12}px ${highlightRect.top - 12}px, ${highlightRect.right + 12}px ${highlightRect.bottom + 12}px, ${highlightRect.left - 12}px ${highlightRect.bottom + 12}px, ${highlightRect.left - 12}px 100%, 100% 100%, 100% 0%)`
@@ -173,61 +158,49 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ onComplete, onSkip, on
         }}
       />
 
-      {/* Spotlight Glow */}
       {highlightRect && (
         <div 
-          className="absolute border-2 border-[var(--accent)] rounded-2xl shadow-[0_0_50px_rgba(59,130,246,0.4)] transition-all duration-500 pointer-events-none"
+          className="absolute border-2 border-white/40 rounded-2xl shadow-[0_0_50px_rgba(255,255,255,0.15)] transition-all duration-500 pointer-events-none"
           style={spotlightStyle}
         />
       )}
 
-      {/* Descriptive Card */}
       <div 
-        className="absolute w-[320px] bg-[var(--bg-elevated)] border border-[var(--border)] rounded-3xl p-6 shadow-2xl transition-all duration-300 animate-in fade-in zoom-in-95 overflow-hidden flex flex-col"
+        className="absolute w-[320px] bg-[var(--bg-secondary)] border border-[var(--border)] rounded-3xl p-6 shadow-2xl transition-all duration-300 animate-in fade-in zoom-in-95"
         style={cardPosition}
       >
         <button 
           onClick={onSkip}
-          className="absolute top-4 right-4 text-[var(--text-dim)] hover:text-white transition-colors"
+          className="absolute top-4 right-4 text-[var(--text-dim)] hover:text-white"
         >
           <X className="w-4 h-4" />
         </button>
 
-        <div className="flex items-center gap-4 mb-4 flex-shrink-0">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-            {React.createElement(currentStep.icon, { className: "w-5 h-5 text-blue-400" })}
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
+            {React.createElement(currentStep.icon, { className: "w-5 h-5 text-white" })}
           </div>
           <div>
-            <h3 className="font-bold text-white text-base leading-tight">{currentStep.title}</h3>
-            <p className="text-[10px] text-[var(--text-dim)] uppercase tracking-widest font-bold">Step {currentStepIndex + 1} of {TOUR_STEPS.length}</p>
+            <h3 className="font-bold text-white text-base">{currentStep.title}</h3>
+            <p className="text-[10px] text-[var(--text-dim)] uppercase font-bold">{currentStepIndex + 1} of {TOUR_STEPS.length}</p>
           </div>
         </div>
 
-        <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-8 overflow-y-auto">
+        <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-6">
           {currentStep.description}
         </p>
 
-        <div className="flex items-center justify-between mt-auto flex-shrink-0">
-          <button 
-            onClick={onSkip}
-            className="text-xs font-bold text-[var(--text-dim)] hover:text-white uppercase tracking-wider"
-          >
-            Skip Tour
-          </button>
+        <div className="flex items-center justify-between mt-auto">
+          <button onClick={onSkip} className="text-xs font-bold text-[var(--text-dim)] hover:text-white uppercase">Skip</button>
           <div className="flex gap-2">
             {currentStepIndex > 0 && (
-                <button 
-                    onClick={handleBack}
-                    className="p-2 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-xl text-white hover:bg-[var(--bg-primary)] transition-colors"
-                >
-                    <ChevronLeft className="w-4 h-4" />
-                </button>
+                <button onClick={handleBack} className="p-2 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl text-white transition-colors hover:bg-[var(--border)]"><ChevronLeft className="w-4 h-4" /></button>
             )}
             <button 
               onClick={handleNext}
-              className="px-5 py-2.5 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors flex items-center gap-2 text-sm"
+              className="px-5 py-2.5 bg-white text-black font-bold rounded-xl hover:opacity-90 flex items-center gap-2 text-sm transition-all active:scale-95"
             >
-              {currentStepIndex === TOUR_STEPS.length - 1 ? 'Get Started' : 'Next'}
+              {currentStepIndex === TOUR_STEPS.length - 1 ? 'Finish' : 'Next'}
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>

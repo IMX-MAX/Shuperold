@@ -33,9 +33,9 @@ const DEFAULT_LABELS: Label[] = [
 const DEFAULT_SETTINGS: UserSettings = {
     theme: 'dark',
     accentColor: '#F5F5F5',
-    workspaceName: 'Acme Space',
+    workspaceName: 'My Workspace',
     visibleModels: [...GEMINI_MODELS],
-    userName: 'Nathan',
+    userName: 'User',
     timezone: 'UTC',
     language: 'English',
     city: 'San Francisco',
@@ -54,32 +54,32 @@ const DEFAULT_SETTINGS: UserSettings = {
 
 const getSystemInstruction = (userName: string, mode: SessionMode) => `
 IDENTITY:
-You are Shuper AI, a high-performance assistant integrated into the Shuper Workspace.
+You are a high-performance assistant.
 CURRENT MODE: ${mode.toUpperCase()}
 
 STRICT CONVERSATION RULES:
-1. NO SIGN-OFFS. Do not say "Respectfully, Shuper AI", "Best regards", or any other closing statement.
-2. NO META-TALK. Do not output status updates or inner thoughts in brackets.
-3. BE DIRECT. Get straight to the helpful information.
-4. MANDATORY PERSONALIZATION. The user's name is ${userName}. You MUST address the user as ${userName} regularly and naturally.
-5. NO PLANNING IN EXPLORE MODE. Since you are in ${mode.toUpperCase()} mode, ${mode === 'explore' ? 'you MUST NOT provide a bulleted internal plan. Just answer the user directly.' : 'you MUST start your response with a clear internal plan of action using hyphens (-).'}
+1. NO SIGN-OFFS. Just answer the question.
+2. NO META-TALK. Don't explain your thoughts in brackets.
+3. BE DIRECT. Get straight to the point.
+4. BE PERSONAL. Use the user's name (${userName}) naturally.
+5. FORMATTING. ${mode === 'explore' ? 'Answer directly without a formal plan.' : 'Start your response with a quick list of what you are going to do using hyphens (-).'}
 
 ${mode === 'execute' ? `
 EXECUTE MODE (PLANNING):
-Start your response with a hyphenated list describing your technical steps.
+Briefly list the steps you will take.
 Example:
-- Analyze user request.
-- Formulate technical solution.
+- Look at the request.
+- Prepare the answer.
 [Your answer here]
 ` : ''}
 
-SYSTEM CAPABILITIES (USE ONLY IF REQUESTED OR RELEVANT):
-- [[TITLE: New Title]] - To rename this session.
-- [[STATUS: backlog | todo | needs_review | done | cancelled | archive]] - To change status.
-- [[LABEL: Label Name]] - To add a label to this session.
-- [[ADD_TASK: Task description]] - To add a new subtask to the side panel.
-- [[DONE_TASK: Task description]] - To mark an existing task as completed.
-- [[REMOVE_TASK: Task description]] - To delete a task.
+CAPABILITIES:
+- [[TITLE: New Title]] - Change the chat name.
+- [[STATUS: backlog | todo | needs_review | done | cancelled | archive]] - Change chat status.
+- [[LABEL: Label Name]] - Add a tag.
+- [[ADD_TASK: Task description]] - Add a subtask.
+- [[DONE_TASK: Task description]] - Finish a task.
+- [[REMOVE_TASK: Task description]] - Delete a task.
 `;
 
 function useStickyState<T>(defaultValue: T, key: string): [T, React.Dispatch<React.SetStateAction<T>>] {
@@ -104,8 +104,7 @@ function useStickyState<T>(defaultValue: T, key: string): [T, React.Dispatch<Rea
         window.localStorage.setItem(key, JSON.stringify(value));
     } catch (e) {
         if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-            console.error("Storage limit exceeded. Large attachments (like images) cannot be saved to history.");
-            // Optional: You could prune old messages here
+            console.error("Storage limit reached. Older history might not be saved.");
         }
     }
   }, [key, value]);
@@ -119,19 +118,19 @@ const OnboardingModal: React.FC<{ onComplete: (name: string, workspace: string) 
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-6">
-            <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-[2.5rem] p-10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-500">
+            <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-500">
                 <div className="mb-10 text-center">
                     <div className="w-20 h-20 bg-[var(--text-main)] rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
                         <Command className="w-10 h-10 text-[var(--bg-primary)]" />
                     </div>
-                    <h2 className="text-3xl font-black tracking-tighter text-white">Shuper</h2>
-                    <p className="text-[var(--text-dim)] font-bold text-[12px] uppercase tracking-widest mt-3">ai workspace</p>
+                    <h2 className="text-3xl font-black tracking-tighter text-white">Welcome</h2>
+                    <p className="text-[var(--text-dim)] font-bold text-[12px] uppercase tracking-widest mt-3">Let's set up your space</p>
                 </div>
 
                 <div className="space-y-6">
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-[var(--text-dim)] uppercase tracking-widest flex items-center gap-2">
-                            <User className="w-3 h-3" /> Identity
+                            <User className="w-3 h-3" /> What should I call you?
                         </label>
                         <input 
                             value={name}
@@ -142,7 +141,7 @@ const OnboardingModal: React.FC<{ onComplete: (name: string, workspace: string) 
                     </div>
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-[var(--text-dim)] uppercase tracking-widest flex items-center gap-2">
-                            <Layout className="w-3 h-3" /> Workspace
+                            <Layout className="w-3 h-3" /> Workspace Name
                         </label>
                         <input 
                             value={workspace}
@@ -156,7 +155,7 @@ const OnboardingModal: React.FC<{ onComplete: (name: string, workspace: string) 
                         disabled={!name || !workspace}
                         className="w-full py-5 bg-[var(--text-main)] text-[var(--bg-primary)] font-black rounded-2xl hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed mt-4 shadow-xl active:scale-[0.98]"
                     >
-                        Initialize Space
+                        Start Chatting
                     </button>
                 </div>
             </div>
@@ -172,25 +171,25 @@ const DeleteConfirmationModal: React.FC<{ title: string, description: string, on
                     <Trash2 className="w-6 h-6" />
                 </div>
                 <div>
-                    <h3 className="text-lg font-black tracking-tight text-white">System Purge</h3>
-                    <p className="text-[10px] font-bold text-red-500/80 uppercase tracking-widest">Permanent Action</p>
+                    <h3 className="text-lg font-black tracking-tight text-white">Delete Permanently?</h3>
+                    <p className="text-[10px] font-bold text-red-500/80 uppercase tracking-widest">Careful</p>
                 </div>
             </div>
             <p className="text-[13px] text-[var(--text-muted)] font-medium mb-10 leading-relaxed">
-                Confirming will remove "{title}" from the neural archive. This cannot be undone.
+                This will remove "{title}" forever. You can't undo this.
             </p>
             <div className="flex flex-col gap-2">
                 <button 
                     onClick={onConfirm}
                     className="w-full py-4 bg-red-600 text-white font-black rounded-2xl hover:bg-red-500 transition-all active:scale-[0.98] shadow-lg shadow-red-600/10"
                 >
-                    Confirm Delete
+                    Delete Now
                 </button>
                 <button 
                     onClick={onCancel}
                     className="w-full py-4 bg-[var(--bg-elevated)] text-[var(--text-muted)] font-bold rounded-2xl hover:text-[var(--text-main)] transition-colors"
                 >
-                    Cancel
+                    Keep It
                 </button>
             </div>
         </div>
@@ -204,11 +203,9 @@ const App: React.FC = () => {
   const [isTourActive, setIsTourActive] = useState(false);
   const [triggerSearch, setTriggerSearch] = useState(0);
   
-  // Logo glow state
   const [logoClicks, setLogoClicks] = useState(0);
   const [isLogoGlowing, setIsLogoGlowing] = useState(false);
 
-  // Persisted State
   const [settings, setSettings] = useStickyState<UserSettings>(DEFAULT_SETTINGS, 'shuper_settings');
   const [availableLabels, setAvailableLabels] = useStickyState<Label[]>(DEFAULT_LABELS, 'shuper_labels');
   const [agents, setAgents] = useStickyState<Agent[]>([], 'shuper_agents');
@@ -232,14 +229,12 @@ const App: React.FC = () => {
     return !!(process.env.API_KEY || settings.apiKeys.openRouter || settings.apiKeys.openRouterAlt || settings.apiKeys.deepSeek || settings.apiKeys.moonshot);
   }, [settings.apiKeys]);
 
-  // Auto-select the most recent session if none is selected
   useEffect(() => {
     if (currentView === 'chat' && !activeSessionId && Array.isArray(sessions) && sessions.length > 0) {
       handleSelectSession(sessions[0].id);
     }
   }, [sessions, activeSessionId, currentView]);
 
-  // Global Keyboard Shortcuts
   useEffect(() => {
     const handleGlobalShortcuts = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
@@ -409,7 +404,6 @@ const App: React.FC = () => {
   };
 
   const executeAICommands = (text: string, sessionId: string) => {
-    // Process Status
     const statusMatch = text.match(/\[\[STATUS:\s*(.*?)\]\]/);
     if (statusMatch) {
         const newStatus = statusMatch[1].trim().toLowerCase() as SessionStatus;
@@ -418,7 +412,6 @@ const App: React.FC = () => {
         }
     }
 
-    // Process Title
     const titleMatch = text.match(/\[\[TITLE:\s*(.*?)\]\]/);
     if (titleMatch) {
         const newTitle = titleMatch[1].trim();
@@ -427,7 +420,6 @@ const App: React.FC = () => {
         }
     }
 
-    // Process Labels
     const labelMatch = text.match(/\[\[LABEL:\s*(.*?)\]\]/);
     if (labelMatch) {
         const labelName = labelMatch[1].trim();
@@ -441,7 +433,6 @@ const App: React.FC = () => {
         setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, labelIds: s.labelIds.includes(lid!) ? s.labelIds : [...s.labelIds, lid!] } : s));
     }
 
-    // Process Tasks
     const addTaskMatch = text.match(/\[\[ADD_TASK:\s*(.*?)\]\]/);
     if (addTaskMatch) {
         const taskText = addTaskMatch[1].trim();
@@ -621,7 +612,7 @@ const App: React.FC = () => {
 
         setSessionMessages(prev => {
             const msgs = prev[currentSessionId] || [];
-            return { ...prev, [currentSessionId]: msgs.map(m => m.id === aiMessageId ? { ...m, content: `System Error: ${errorText}` } : m) };
+            return { ...prev, [currentSessionId]: msgs.map(m => m.id === aiMessageId ? { ...m, content: `Error: ${errorText}` } : m) };
         });
     } finally {
         setSessionLoading(prev => ({ ...prev, [currentSessionId]: false }));
@@ -630,14 +621,14 @@ const App: React.FC = () => {
   };
 
   const handleClearData = () => {
-    if (confirm("Are you sure you want to clear ALL data?")) {
+    if (confirm("Delete all your data forever?")) {
         localStorage.clear();
         window.location.reload();
     }
   };
 
   const handleRepairWorkspace = () => {
-    if (confirm("Repair Workspace will clear chats and labels. Continue?")) {
+    if (confirm("Reset everything except your settings?")) {
         setSessions([]);
         setSessionMessages({});
         setAvailableLabels(DEFAULT_LABELS);
@@ -658,7 +649,7 @@ const App: React.FC = () => {
   
   const deleteSession = (id: string) => {
       const session = sessions.find(s => s.id === id);
-      setDeleteConfirmation({ type: 'chat', id, title: session?.title || 'this conversation' });
+      setDeleteConfirmation({ type: 'chat', id, title: session?.title || 'this chat' });
   };
 
   const handleConfirmDelete = () => {
@@ -713,7 +704,7 @@ const App: React.FC = () => {
       {deleteConfirmation && (
           <DeleteConfirmationModal 
               title={deleteConfirmation.title}
-              description={deleteConfirmation.type === 'chat' ? 'this conversation' : 'this agent'}
+              description={deleteConfirmation.type === 'chat' ? 'this chat' : 'this agent'}
               onConfirm={handleConfirmDelete}
               onCancel={() => setDeleteConfirmation(null)}
           />

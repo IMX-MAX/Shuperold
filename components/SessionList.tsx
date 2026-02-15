@@ -52,6 +52,11 @@ export const SessionList: React.FC<SessionListProps> = ({
 
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, sessionId: string } | null>(null);
 
+  const displayedSessions = sessions.filter(s => 
+      s.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      (s.subtitle && s.subtitle.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   useEffect(() => {
     if (triggerSearch && triggerSearch > 0) {
       setIsSearchOpen(true);
@@ -59,26 +64,40 @@ export const SessionList: React.FC<SessionListProps> = ({
     }
   }, [triggerSearch]);
 
-  // Handle Indicator Animation
+  // Refined Indicator calculation for perfect alignment
   useEffect(() => {
-    if (activeSessionId && listRef.current) {
-        const activeElement = listRef.current.querySelector(`[data-session-id="${activeSessionId}"]`) as HTMLElement;
-        if (activeElement) {
-            setIndicatorStyle({
-                opacity: 1,
-                transform: `translateY(${activeElement.offsetTop + 8}px)`, // Adjusted for internal padding
-                height: `${activeElement.offsetHeight - 16}px`, // Adjusted for internal padding
-            });
+    const updateIndicator = () => {
+        if (activeSessionId && listRef.current) {
+            const activeElement = listRef.current.querySelector(`[data-session-id="${activeSessionId}"]`) as HTMLElement;
+            const innerBox = activeElement?.querySelector('.session-item-box') as HTMLElement;
+            
+            if (innerBox && listRef.current) {
+                const containerRect = listRef.current.getBoundingClientRect();
+                const boxRect = innerBox.getBoundingClientRect();
+                
+                // Position relative to the container scroll
+                const relativeTop = boxRect.top - containerRect.top + listRef.current.scrollTop;
+                
+                setIndicatorStyle({
+                    opacity: 1,
+                    transform: `translateY(${relativeTop}px)`,
+                    height: `${boxRect.height}px`,
+                    width: '3px',
+                    left: '2px', // Moved closer to ensure it touches the edge visually
+                });
+            }
+        } else {
+            setIndicatorStyle({ opacity: 0 });
         }
-    } else {
-        setIndicatorStyle({ opacity: 0 });
-    }
-  }, [activeSessionId, sessions]);
+    };
 
-  const displayedSessions = sessions.filter(s => 
-      s.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      (s.subtitle && s.subtitle.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+    const timer = setTimeout(updateIndicator, 0);
+    window.addEventListener('resize', updateIndicator);
+    return () => {
+        clearTimeout(timer);
+        window.removeEventListener('resize', updateIndicator);
+    };
+  }, [activeSessionId, sessions, displayedSessions.length]);
 
   useEffect(() => {
       if (isSearchOpen && searchInputRef.current) {
@@ -161,7 +180,7 @@ export const SessionList: React.FC<SessionListProps> = ({
       <div className="flex-1 overflow-y-auto px-2 py-4 custom-scrollbar relative" ref={listRef}>
         {/* Animated Shared Indicator Bar */}
         <div 
-            className="absolute left-0 w-[3px] bg-[var(--text-main)] rounded-full z-20 active-indicator-bar pointer-events-none"
+            className="absolute bg-[var(--text-main)] rounded-full z-20 active-indicator-bar pointer-events-none"
             style={indicatorStyle}
         />
 
@@ -186,7 +205,7 @@ export const SessionList: React.FC<SessionListProps> = ({
                             <div
                                 onClick={() => onSelectSession(session.id)}
                                 onContextMenu={(e) => handleContextMenu(e, session.id)}
-                                className={`group flex-1 flex items-start gap-3 p-3 ml-2 rounded-lg cursor-pointer transition-all duration-200 ${isActive ? 'bg-[var(--bg-elevated)] shadow-sm' : 'hover:bg-[var(--bg-elevated)]/50'}`}
+                                className={`session-item-box group flex-1 flex items-start gap-3 p-3 ml-2.5 rounded-lg cursor-pointer transition-all duration-200 ${isActive ? 'bg-[var(--bg-elevated)] shadow-sm' : 'hover:bg-[var(--bg-elevated)]/50'}`}
                             >
                                 <div className="mt-1 flex-shrink-0" onClick={(e) => handleStatusClick(e, session.id)}>
                                     <StatusIcon className={`w-4 h-4 ${isActive ? 'opacity-100' : 'opacity-60'} ${statusColor} group-hover:opacity-100 transition-opacity`} strokeWidth={isActive ? 2.5 : 2} />

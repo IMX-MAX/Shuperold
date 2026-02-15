@@ -58,12 +58,12 @@ export const LabelSelector: React.FC<LabelSelectorProps> = ({
         style={style}
     >
       <div className="px-4 py-2.5 border-b border-[#262626] flex items-center justify-between">
-         <span className="text-[10px] font-bold text-[#737373] uppercase tracking-widest">Workspace Taxonomy</span>
+         <span className="text-[10px] font-bold text-[#737373] uppercase tracking-widest">Tags</span>
       </div>
       
       <div className="max-h-[260px] overflow-y-auto py-1.5 custom-scrollbar">
         {availableLabels.length === 0 ? (
-            <div className="px-5 py-6 text-xs text-[#525252] italic text-center leading-relaxed">No custom labels defined.<br/>Configure them in Settings.</div>
+            <div className="px-5 py-6 text-xs text-[#525252] italic text-center leading-relaxed">No tags found.<br/>Add some in Settings.</div>
         ) : (
           availableLabels.map(label => {
               const isSelected = selectedLabelIds.includes(label.id);
@@ -88,14 +88,14 @@ export const LabelSelector: React.FC<LabelSelectorProps> = ({
         <button 
           onClick={handleAISuggest}
           disabled={isSuggesting || availableLabels.length === 0}
-          className="w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-[11px] font-bold text-[var(--text-main)] hover:bg-[var(--text-main)]/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed group"
+          className="w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-[11px] font-bold text-[var(--text-main)] hover:bg-[var(--text-main)]/10 transition-colors disabled:opacity-40 group"
         >
           {isSuggesting ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : (
             <Sparkles className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
           )}
-          <span>{isSuggesting ? 'IDENTIFYING...' : 'SUGGEST WITH AI'}</span>
+          <span>{isSuggesting ? 'Thinking...' : 'Tag automatically'}</span>
         </button>
       </div>
     </div>

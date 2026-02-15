@@ -170,7 +170,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
   const StatusIcon = STATUS_CONFIG[currentStatus].icon;
 
   return (
-    <div className="w-full max-w-3xl floating-input-shadow rounded-[24px] bg-[var(--input-bg)] border border-[var(--border)] overflow-visible">
+    <div id="tour-input-area" className="w-full max-w-3xl floating-input-shadow rounded-[24px] bg-[var(--input-bg)] border border-[var(--border)] overflow-visible">
       <div className="p-3">
         <div className="flex items-center justify-between mb-2">
             <div className="relative">
@@ -248,7 +248,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
                     disabled={(!input.trim() && attachments.length === 0 && !isLoading)}
                     className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${(!input.trim() && !isLoading) ? 'bg-[#8E8E93]/20 text-[#8E8E93]/40' : 'bg-[#8E8E93] text-[#1E1E1E] hover:bg-white hover:scale-105'}`}
                 >
-                    {isLoading ? <Square className="w-2.5 h-2.5 fill-current" /> : <ArrowUp className="w-4 h-4" strokeWidth={3} />}
+                    {isLoading ? <Square className="w-2.5 h-2.5 fill-current" /> : <ArrowUp className="w-4 h-4" strokeWidth={2.5} />}
                 </button>
             </div>
         </div>

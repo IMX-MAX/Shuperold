@@ -93,6 +93,7 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
       <div className="px-3 pb-4 flex-1 space-y-1 overflow-y-auto custom-scrollbar">
         <div className="mb-4">
             <button 
+                id="tour-new-chat"
                 onClick={onNewSession}
                 className="flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg hover:bg-[var(--bg-elevated)] text-[var(--text-main)] transition-all duration-200 border border-[var(--border)] bg-transparent active:scale-[0.98]"
             >
@@ -174,7 +175,7 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
       </div>
 
       <div className="px-3 pb-4 space-y-1">
-        <div onClick={() => onChangeView('settings')} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${currentView === 'settings' ? 'bg-[var(--bg-elevated)] text-[var(--text-main)] font-semibold' : 'hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]'}`}>
+        <div id="tour-settings" onClick={() => onChangeView('settings')} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${currentView === 'settings' ? 'bg-[var(--bg-elevated)] text-[var(--text-main)] font-semibold' : 'hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]'}`}>
           <Settings className="w-4 h-4" />
           <span>Settings</span>
         </div>
