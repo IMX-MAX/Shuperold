@@ -14,7 +14,7 @@ interface StatusSelectorProps {
   onSelect: (status: SessionStatus) => void;
   onClose: () => void;
   isOpen: boolean;
-  position?: { top: number; left: number };
+  position?: React.CSSProperties;
 }
 
 export const STATUS_CONFIG: Record<SessionStatus, { label: string; icon: React.ElementType; color: string }> = {
@@ -30,13 +30,17 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({ currentStatus, o
   if (!isOpen) return null;
 
   const statuses: SessionStatus[] = ['backlog', 'todo', 'needs_review', 'done', 'cancelled'];
+  
+  // Determine transform origin based on positioning
+  const isUpward = position && (position.bottom !== undefined);
+  const animationOrigin = isUpward ? 'origin-bottom-right' : 'origin-top-right';
 
   return (
     <>
       <div className="fixed inset-0 z-[40]" onClick={onClose} />
       <div 
-        className="absolute z-[50] w-[180px] bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-150 origin-top-right overflow-hidden"
-        style={position ? { top: position.top, left: position.left } : { bottom: '100%', right: 0, marginBottom: '8px', transformOrigin: 'bottom right' }}
+        className={`absolute z-[50] w-[180px] bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-150 overflow-hidden ${animationOrigin}`}
+        style={position || { bottom: '100%', right: 0, marginBottom: '8px' }}
       >
         <div className="px-2 py-1.5 border-b border-[#2A2A2A] mb-1">
             <input 

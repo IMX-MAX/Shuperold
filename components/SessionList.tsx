@@ -38,7 +38,7 @@ export const SessionList: React.FC<SessionListProps> = ({
     currentFilter
 }) => {
   const [statusMenuOpenId, setStatusMenuOpenId] = useState<string | null>(null);
-  const [menuPosition, setMenuPosition] = useState<{top: number, left: number} | undefined>(undefined);
+  const [menuPosition, setMenuPosition] = useState<React.CSSProperties | undefined>(undefined);
   
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -232,9 +232,7 @@ export const SessionList: React.FC<SessionListProps> = ({
                                                                 New
                                                              </span>
                                                          )}
-                                                         <span className="text-[10px] bg-[var(--bg-tertiary)] text-[var(--text-muted)] px-1.5 py-0.5 rounded border border-[var(--border)] group-hover:border-[var(--text-dim)] transition-colors">
-                                                            {session.subtitle}
-                                                         </span>
+                                                         <span className="text-[10px] bg-[var(--bg-tertiary)] text-[var(--text-muted)] px-1.5 py-0.5 rounded border border-[var(--border)] group-hover:border-[var(--text-dim)] transition-colors capitalize">{session.mode}</span>
                                                      </div>
                                                      <span className="text-[11px] text-[var(--text-dim)] font-medium">
                                                         {session.timestamp}

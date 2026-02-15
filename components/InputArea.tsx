@@ -66,7 +66,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const [isModeMenuOpen, setIsModeMenuOpen] = useState(false);
   
-  // Specific menu for individual labels (Remove context)
+  // Specific menu for individual labels
   const [activeLabelId, setActiveLabelId] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -153,26 +153,26 @@ export const InputArea: React.FC<InputAreaProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto w-full px-4 mb-6">
-      <div className="relative bg-[#202020] border border-[#333] rounded-2xl shadow-2xl flex flex-col overflow-visible transition-all duration-200">
+    <div className="max-w-4xl mx-auto w-full px-4 mb-2">
+      <div className="relative bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl shadow-2xl flex flex-col overflow-visible transition-all duration-200">
         
-        {/* Top Toolbar - "Floating" effect (No border, transparent bg) */}
-        <div className="flex items-center justify-between px-3 pt-3 pb-1 bg-transparent">
+        {/* Top Toolbar - Compact */}
+        <div className="flex items-center justify-between px-2 pt-2 pb-0.5 bg-transparent">
             {/* Left: Execute Dropdown */}
             <div className="relative">
                 <button 
                     onClick={() => setIsModeMenuOpen(!isModeMenuOpen)}
-                    className="flex items-center gap-2 text-[#A1A1A1] hover:text-[#E5E5E5] text-[12px] font-medium bg-[#2A2A2A] px-3 py-1.5 rounded-lg border border-[#333] transition-colors hover:border-[#404040]"
+                    className="flex items-center gap-1.5 text-[#888] hover:text-[#E5E5E5] text-[11px] font-medium bg-[#242424] px-2 py-1 rounded-md border border-[#2A2A2A] transition-colors hover:border-[#333]"
                 >
-                    {React.createElement(MODE_CONFIG[currentMode].icon, { className: "w-3.5 h-3.5" })}
+                    {React.createElement(MODE_CONFIG[currentMode].icon, { className: "w-3 h-3" })}
                     <span>{MODE_CONFIG[currentMode].label}</span>
-                    <ChevronDown className="w-3 h-3 opacity-50 ml-1" />
+                    <ChevronDown className="w-2.5 h-2.5 opacity-50" />
                 </button>
 
                 {isModeMenuOpen && (
                     <>
                         <div className="fixed inset-0 z-40" onClick={() => setIsModeMenuOpen(false)} />
-                        <div className="absolute top-full left-0 mt-2 w-48 bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl py-1 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                        <div className="absolute bottom-full left-0 mb-1 w-44 bg-[#1F1F1F] border border-[#333] rounded-lg shadow-2xl py-1 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-bottom-left">
                             {(Object.keys(MODE_CONFIG) as SessionMode[]).map((mode) => (
                                 <div
                                     key={mode}
@@ -180,15 +180,15 @@ export const InputArea: React.FC<InputAreaProps> = ({
                                         onUpdateMode(mode);
                                         setIsModeMenuOpen(false);
                                     }}
-                                    className={`flex flex-col px-3 py-2 cursor-pointer transition-colors ${
+                                    className={`flex flex-col px-3 py-1.5 cursor-pointer transition-colors ${
                                         currentMode === mode ? 'bg-[#2A2A2A]' : 'hover:bg-[#2A2A2A]'
                                     }`}
                                 >
                                     <div className="flex items-center gap-2">
-                                        {React.createElement(MODE_CONFIG[mode].icon, { className: `w-3.5 h-3.5 ${currentMode === mode ? 'text-white' : 'text-[#737373]'}` })}
-                                        <span className={`text-xs font-medium ${currentMode === mode ? 'text-white' : 'text-[#A1A1A1]'}`}>{MODE_CONFIG[mode].label}</span>
+                                        {React.createElement(MODE_CONFIG[mode].icon, { className: `w-3 h-3 ${currentMode === mode ? 'text-white' : 'text-[#737373]'}` })}
+                                        <span className={`text-[11px] font-medium ${currentMode === mode ? 'text-white' : 'text-[#A1A1A1]'}`}>{MODE_CONFIG[mode].label}</span>
                                     </div>
-                                    <span className="text-[10px] text-[#525252] mt-0.5">{MODE_CONFIG[mode].description}</span>
+                                    <span className="text-[9px] text-[#525252]">{MODE_CONFIG[mode].description}</span>
                                 </div>
                             ))}
                         </div>
@@ -197,27 +197,25 @@ export const InputArea: React.FC<InputAreaProps> = ({
             </div>
 
             {/* Right: Labels & Status */}
-            <div className="flex items-center gap-2">
-                {/* Render Selected Labels as Pills */}
+            <div className="flex items-center gap-1.5">
                 {currentLabelIds.map(labelId => {
                     const label = availableLabels.find(l => l.id === labelId);
                     if (!label) return null;
                     return (
                         <div key={label.id} className="relative">
-                            {/* Remove Menu */}
                             {activeLabelId === label.id && (
                                 <>
                                 <div className="fixed inset-0 z-40" onClick={() => setActiveLabelId(null)} />
-                                <div className="absolute bottom-full left-0 mb-2 w-32 bg-[#1F1F1F] border border-[#333] rounded-lg shadow-xl py-1 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                                <div className="absolute bottom-full left-0 mb-1 w-28 bg-[#1F1F1F] border border-[#333] rounded-lg shadow-xl py-1 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                                     <div 
                                         onClick={() => {
-                                            onUpdateLabels(label.id); // Toggle off (remove)
+                                            onUpdateLabels(label.id);
                                             setActiveLabelId(null);
                                         }}
-                                        className="flex items-center gap-2 px-3 py-2 text-[#EF4444] hover:bg-[#2A2A2A] cursor-pointer"
+                                        className="flex items-center gap-2 px-2 py-1 text-[#EF4444] hover:bg-[#2A2A2A] cursor-pointer"
                                     >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                        <span className="text-xs font-medium">Remove</span>
+                                        <Trash2 className="w-3 h-3" />
+                                        <span className="text-[10px] font-medium">Remove</span>
                                     </div>
                                 </div>
                                 </>
@@ -225,31 +223,32 @@ export const InputArea: React.FC<InputAreaProps> = ({
                             
                             <button 
                                 onClick={() => setActiveLabelId(activeLabelId === label.id ? null : label.id)}
-                                className="flex items-center gap-2 text-[#E5E5E5] text-[12px] font-medium bg-[#2A2A2A] px-3 py-1.5 rounded-lg border border-[#333] transition-colors hover:border-[#404040]"
+                                className="flex items-center gap-1.5 text-[#E5E5E5] text-[11px] font-medium bg-[#242424] px-2 py-1 rounded-md border border-[#2A2A2A] transition-colors hover:border-[#333]"
                             >
-                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: label.color }}></div>
+                                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: label.color }}></div>
                                 <span>{label.name}</span>
-                                <ChevronDown className="w-3 h-3 opacity-50 ml-1" />
+                                <ChevronDown className="w-2.5 h-2.5 opacity-50" />
                             </button>
                         </div>
                     );
                 })}
 
-                {/* Status Selector */}
+                {/* Status Selector - Adjusted to open UPWARDS */}
                 <div className="relative">
                     <button 
                         onClick={() => setIsStatusMenuOpen(!isStatusMenuOpen)}
-                        className="flex items-center gap-2 text-[#A1A1A1] hover:text-[#E5E5E5] text-[12px] font-medium bg-[#2A2A2A] px-3 py-1.5 rounded-lg border border-[#333] transition-colors hover:border-[#404040]"
+                        className="flex items-center gap-1.5 text-[#888] hover:text-[#E5E5E5] text-[11px] font-medium bg-[#242424] px-2 py-1 rounded-md border border-[#2A2A2A] transition-colors hover:border-[#333]"
                     >
-                        <StatusIcon className={`w-3.5 h-3.5 ${STATUS_CONFIG[currentStatus].color}`} />
+                        <StatusIcon className={`w-3 h-3 ${STATUS_CONFIG[currentStatus].color}`} />
                         <span>{STATUS_CONFIG[currentStatus].label}</span>
-                        <ChevronDown className="w-3 h-3 opacity-50 ml-1" />
+                        <ChevronDown className="w-2.5 h-2.5 opacity-50" />
                     </button>
                     <StatusSelector 
                         isOpen={isStatusMenuOpen}
                         onClose={() => setIsStatusMenuOpen(false)}
                         currentStatus={currentStatus}
                         onSelect={onUpdateStatus}
+                        position={{ bottom: 'calc(100% + 8px)', right: 0 }}
                     />
                 </div>
             </div>
@@ -257,44 +256,44 @@ export const InputArea: React.FC<InputAreaProps> = ({
 
         {/* Attachments Preview Area */}
         {attachments.length > 0 && (
-            <div className="px-4 pt-2 flex gap-3 overflow-x-auto custom-scrollbar">
+            <div className="px-3 pt-1.5 flex gap-2 overflow-x-auto custom-scrollbar">
                 {attachments.map((att, i) => (
                     <div key={i} className="relative group flex-shrink-0">
-                        <div className="w-16 h-16 rounded-lg border border-[#333] overflow-hidden bg-[#262626] flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-lg border border-[#2A2A2A] overflow-hidden bg-[#242424] flex items-center justify-center">
                             {att.type.startsWith('image/') ? (
                                 <img src={att.data} alt={att.name} className="w-full h-full object-cover" />
                             ) : (
-                                <FileIcon className="w-5 h-5 text-[#A1A1A1]" />
+                                <FileIcon className="w-4 h-4 text-[#737373]" />
                             )}
                         </div>
                         <button 
                             onClick={() => removeAttachment(i)}
-                            className="absolute -top-1.5 -right-1.5 bg-[#EF4444] text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute -top-1 -right-1 bg-[#EF4444] text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
-                            <X className="w-3 h-3" />
+                            <X className="w-2.5 h-2.5" />
                         </button>
                     </div>
                 ))}
             </div>
         )}
 
-        {/* Main Text Input */}
+        {/* Main Text Input - Shorter min-height and slightly tighter padding */}
         <textarea
           ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder={isLoading ? "AI is thinking..." : "Type # to apply labels to this conversation"}
-          className="w-full bg-transparent border-0 text-[#E5E5E5] placeholder-[#525252] px-4 py-4 focus:ring-0 focus:outline-none resize-none min-h-[80px] max-h-[300px] overflow-y-auto custom-scrollbar text-[15px]"
+          placeholder={isLoading ? "AI is thinking..." : "Ask Shuper or type / for commands"}
+          className="w-full bg-transparent border-0 text-[#E5E5E5] placeholder-[#444] px-3.5 py-1.5 focus:ring-0 focus:outline-none resize-none min-h-[40px] max-h-[300px] overflow-y-auto custom-scrollbar text-[14px]"
           rows={1}
           disabled={isLoading}
         />
 
-        {/* Bottom Toolbar */}
-        <div className="flex items-center justify-between px-3 py-3 bg-transparent">
+        {/* Bottom Toolbar - Compact */}
+        <div className="flex items-center justify-between px-2 pb-2 pt-0 bg-transparent">
             {/* Left Icons */}
-            <div className="flex items-center gap-3 px-1">
+            <div className="flex items-center gap-2 px-1">
                 <input 
                     type="file" 
                     multiple 
@@ -304,19 +303,19 @@ export const InputArea: React.FC<InputAreaProps> = ({
                 />
                 <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="text-[#A1A1A1] hover:text-[#E5E5E5] transition-colors"
+                    className="text-[#666] hover:text-[#E5E5E5] transition-colors p-1 rounded hover:bg-[#2A2A2A]"
                     title="Attach file"
                 >
-                    <Paperclip className="w-5 h-5" strokeWidth={1.5} />
+                    <Paperclip className="w-4 h-4" />
                 </button>
             </div>
 
             {/* Right Controls */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
                 {isThinking && (
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#262626]/50 border border-[#333] text-[#737373]">
-                        <Zap className="w-3 h-3 text-[#F59E0B] fill-[#F59E0B]" />
-                        <span className="text-[10px] font-medium uppercase tracking-wider">Thinking</span>
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[#2A2A2A]/50 border border-[#333] text-[#F59E0B]">
+                        <Zap className="w-2.5 h-2.5 fill-[#F59E0B]" />
+                        <span className="text-[9px] font-bold uppercase tracking-widest">Think</span>
                     </div>
                 )}
                 
@@ -324,12 +323,12 @@ export const InputArea: React.FC<InputAreaProps> = ({
                 <div className="relative">
                     <button 
                         onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                        className="flex items-center gap-1 text-[#A1A1A1] hover:text-[#E5E5E5] transition-colors px-2 py-1 rounded hover:bg-[#262626]"
+                        className="flex items-center gap-0.5 text-[#777] hover:text-[#E5E5E5] transition-colors px-1.5 py-1 rounded hover:bg-[#242424]"
                     >
-                        <span className="text-[13px] font-medium">
-                            {activeAgent ? activeAgent.name : currentModel}
+                        <span className="text-[12px] font-medium">
+                            {activeAgent ? activeAgent.name : (currentModel.split('/')[1] || currentModel.split(':')[0] || currentModel)}
                         </span>
-                        <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+                        <ChevronDown className="w-3 h-3 opacity-50" />
                     </button>
                     <ModelSelector 
                         isOpen={isModelMenuOpen}
@@ -350,13 +349,13 @@ export const InputArea: React.FC<InputAreaProps> = ({
                 <button 
                     onClick={handleSend}
                     disabled={(!input.trim() && attachments.length === 0) || isLoading}
-                    className={`w-8 h-8 rounded-full transition-all duration-200 flex items-center justify-center ${
+                    className={`w-7 h-7 rounded-lg transition-all duration-200 flex items-center justify-center ${
                         (!input.trim() && attachments.length === 0) || isLoading
-                            ? 'bg-[#333] text-[#525252] cursor-not-allowed'
-                            : 'bg-[#8E8E93] text-[#1E1E1E] hover:bg-[#A1A1A1] shadow-md'
+                            ? 'bg-[#2A2A2A] text-[#444] cursor-not-allowed'
+                            : 'bg-[#EEE] text-[#000] hover:bg-white shadow-md'
                     }`}
                 >
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUp className="w-4 h-4" strokeWidth={2.5} />}
+                    {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowUp className="w-3.5 h-3.5" strokeWidth={3} />}
                 </button>
             </div>
         </div>

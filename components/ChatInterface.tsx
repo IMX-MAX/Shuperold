@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { ChevronDown, Copy, Brain, ChevronRight, Terminal, Search, Globe, Eye, Loader2, AlertTriangle, Settings } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import vscDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus';
 import { Message, Session, Label, Attachment, Agent, OPENROUTER_FREE_MODELS, DEEPSEEK_MODELS, MOONSHOT_MODELS, GEMINI_MODELS, SessionMode } from '../types';
 import { InputArea } from './InputArea';
 import { SessionStatus } from '../types';
@@ -402,7 +402,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[var(--bg-tertiary)] via-[var(--bg-tertiary)] to-transparent z-20">
            <InputArea 
-                onSend={onSendMessage} 
+                onSendMessage={onSendMessage} 
                 isLoading={isLoading} 
                 currentStatus={session.status}
                 currentLabelIds={session.labelIds}

@@ -64,14 +64,13 @@ Usage Rule:
 - Do not output the tags if you are just answering a question normally. Only use them if the user asks you to update the session.
 `;
 
-// Helper for local storage persistence
-const useStickyState = <T,>(defaultValue: T, key: string): [T, React.Dispatch<React.SetStateAction<T>>] => {
+// Helper for local storage persistence using standard function syntax to avoid parser ambiguity
+function useStickyState<T>(defaultValue: T, key: string): [T, React.Dispatch<React.SetStateAction<T>>] {
   const [value, setValue] = useState<T>(() => {
     try {
       const stickyValue = window.localStorage.getItem(key);
       if (stickyValue !== null) {
           const parsed = JSON.parse(stickyValue);
-          // Merging objects to ensure new structure fields are kept, but NOT for arrays
           if (typeof defaultValue === 'object' && defaultValue !== null && !Array.isArray(defaultValue)) {
               return { ...defaultValue, ...parsed };
           }
@@ -88,7 +87,7 @@ const useStickyState = <T,>(defaultValue: T, key: string): [T, React.Dispatch<Re
   }, [key, value]);
 
   return [value, setValue];
-};
+}
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'chat' | 'agents' | 'settings'>('chat');
@@ -125,7 +124,6 @@ const App: React.FC = () => {
   }, [settings.theme, settings.accentColor]);
 
   const filteredSessions = useMemo(() => {
-    // Safety check to ensure sessions is always an array
     const sessionArr = Array.isArray(sessions) ? sessions : [];
     
     if (currentFilter.startsWith('status:')) {
@@ -158,19 +156,15 @@ const App: React.FC = () => {
   const handleUpdateSettings = useCallback((newSettings: UserSettings) => {
     const updatedVisibleModels = new Set(newSettings.visibleModels);
     
-    // Auto-enable Gemini models if key is provided (and was previously empty)
     if (newSettings.apiKeys.gemini && !settings.apiKeys.gemini) {
         GEMINI_MODELS.forEach(m => updatedVisibleModels.add(m));
     }
-    // Auto-enable OpenRouter models
     if (newSettings.apiKeys.openRouter && !settings.apiKeys.openRouter) {
         OPENROUTER_FREE_MODELS.forEach(m => updatedVisibleModels.add(m));
     }
-    // Auto-enable DeepSeek models
     if (newSettings.apiKeys.deepSeek && !settings.apiKeys.deepSeek) {
         DEEPSEEK_MODELS.forEach(m => updatedVisibleModels.add(m));
     }
-    // Auto-enable Moonshot models
     if (newSettings.apiKeys.moonshot && !settings.apiKeys.moonshot) {
         MOONSHOT_MODELS.forEach(m => updatedVisibleModels.add(m));
     }
@@ -246,7 +240,6 @@ const App: React.FC = () => {
       setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === sessionId ? { ...s, title: newTitle } : s) : prev);
   };
 
-  // --- AI Command Execution Logic ---
   const executeAICommands = (text: string, sessionId: string) => {
     const statusMatch = text.match(/\[\[STATUS:\s*(.*?)\]\]/);
     if (statusMatch) {
@@ -377,7 +370,7 @@ const App: React.FC = () => {
             apiKey = settings.apiKeys.deepSeek;
         } else if (actualModel.startsWith('moonshot-')) {
             apiKey = settings.apiKeys.moonshot;
-        } else if (actualModel.includes('/') || actualModel.includes(':')) { // OpenRouter pattern
+        } else if (actualModel.includes('/') || actualModel.includes(':')) {
             apiKey = settings.apiKeys.openRouter;
         }
         
