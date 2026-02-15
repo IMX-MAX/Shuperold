@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Inbox, Layout, User, Rocket, ShieldAlert, AlertTriangle, Trash2, Wrench, Menu, PlusCircle } from 'lucide-react';
+import { Inbox, Layout, User, Rocket, ShieldAlert, AlertTriangle, Trash2, Wrench, Menu, PlusCircle, Command, ShieldCheck } from 'lucide-react';
 import { SidebarNavigation } from './components/SidebarNavigation';
 import { SessionList } from './components/SessionList';
 import { ChatInterface } from './components/ChatInterface';
@@ -19,22 +19,21 @@ import {
     GEMINI_MODELS, 
     DEEPSEEK_MODELS, 
     MOONSHOT_MODELS, 
-    SessionMode 
+    SessionMode,
+    Task
 } from './types';
 import { sendMessageToGemini, generateSessionTitle } from './services/geminiService';
 
 const DEFAULT_LABELS: Label[] = [
-    { id: '1', name: 'Design', color: '#EC4899' },
-    { id: '2', name: 'Research', color: '#8B5CF6' },
-    { id: '3', name: 'Writing', color: '#A78BFA' },
-    { id: '4', name: 'Code', color: '#3B82F6' },
-    { id: '5', name: 'Bug', color: '#0EA5E9' },
+    { id: '1', name: 'Design', color: '#A1A1A1' },
+    { id: '2', name: 'Research', color: '#737373' },
+    { id: '3', name: 'Priority', color: '#3B82F6' },
 ];
 
 const DEFAULT_SETTINGS: UserSettings = {
     theme: 'dark',
     accentColor: '#3B82F6',
-    workspaceName: 'shuper - your favorite AI executor',
+    workspaceName: 'Acme Space',
     visibleModels: [...GEMINI_MODELS],
     userName: 'Nathan',
     timezone: 'UTC',
@@ -44,6 +43,7 @@ const DEFAULT_SETTINGS: UserSettings = {
     baseKnowledge: '',
     sendKey: 'Enter',
     onboardingComplete: false,
+    enableTasks: true,
     apiKeys: {
         openRouter: '',
         openRouterAlt: '',
@@ -52,35 +52,34 @@ const DEFAULT_SETTINGS: UserSettings = {
     }
 };
 
-const AI_COMMANDS_INSTRUCTION = `
+const getSystemInstruction = (userName: string, mode: SessionMode) => `
 IDENTITY:
 You are Shuper AI, a high-performance assistant integrated into the Shuper Workspace.
-You provide extremely precise, efficient, and sophisticated responses.
+CURRENT MODE: ${mode.toUpperCase()}
 
 STRICT CONVERSATION RULES:
 1. NO SIGN-OFFS. Do not say "Respectfully, Shuper AI", "Best regards", or any other closing statement.
 2. NO META-TALK. Do not output status updates or inner thoughts in brackets.
 3. BE DIRECT. Get straight to the helpful information.
-4. IDENTITY. If asked, you are Shuper AI.
+4. MANDATORY PERSONALIZATION. The user's name is ${userName}. You MUST address the user as ${userName} regularly and naturally.
+5. NO PLANNING IN EXPLORE MODE. Since you are in ${mode.toUpperCase()} mode, ${mode === 'explore' ? 'you MUST NOT provide a bulleted internal plan. Just answer the user directly.' : 'you MUST start your response with a clear internal plan of action using hyphens (-).'}
 
+${mode === 'execute' ? `
 EXECUTE MODE (PLANNING):
-If the user is in Execute mode, you MUST start your response with a clear internal plan of action.
-Format each step of your plan on a new line starting with a hyphen (-).
-Ensure these steps describe your logic or intent (e.g., "- Acknowledge the user's greeting.", "- Confirm readiness to execute tasks.").
-Once your plan is complete, provide your final response on a new line.
+Start your response with a hyphenated list describing your technical steps.
+Example:
+- Analyze user request.
+- Formulate technical solution.
+[Your answer here]
+` : ''}
 
-Example for a greeting:
-- Acknowledge the user's greeting.
-- Confirm readiness to execute tasks or provide advanced technical assistance.
-Hello! I'm Shuper AI, ready to assist you.
-
-SYSTEM CAPABILITIES (USE ONLY IF REQUESTED):
+SYSTEM CAPABILITIES (USE ONLY IF REQUESTED OR RELEVANT):
 - [[TITLE: New Title]] - To rename this session.
 - [[STATUS: backlog | todo | needs_review | done | cancelled | archive]] - To change status.
 - [[LABEL: Label Name]] - To add a label to this session.
-
-LABEL RESTRICTION:
-IMPORTANT: You MUST NOT output the [[LABEL: ...]] tag for a NEW label that doesn't already exist unless the user has explicitly given you permission.
+- [[ADD_TASK: Task description]] - To add a new subtask to the side panel.
+- [[DONE_TASK: Task description]] - To mark an existing task as completed.
+- [[REMOVE_TASK: Task description]] - To delete a task.
 `;
 
 function useStickyState<T>(defaultValue: T, key: string): [T, React.Dispatch<React.SetStateAction<T>>] {
@@ -112,45 +111,45 @@ const OnboardingModal: React.FC<{ onComplete: (name: string, workspace: string) 
     const [workspace, setWorkspace] = useState('');
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-6">
-            <div className="w-full max-w-md bg-[#171717] border border-[#333] rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-300">
-                <div className="mb-8 text-center">
-                    <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-600/20">
-                        <Rocket className="w-8 h-8 text-white" />
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-6">
+            <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-[2.5rem] p-10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-500">
+                <div className="mb-10 text-center">
+                    <div className="w-20 h-20 bg-[var(--text-main)] rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
+                        <Command className="w-10 h-10 text-[var(--bg-primary)]" />
                     </div>
-                    <h2 className="text-2xl font-bold text-white">Welcome to Shuper</h2>
-                    <p className="text-gray-400 text-sm mt-2">Let's set up your personal workspace.</p>
+                    <h2 className="text-3xl font-black tracking-tighter text-white">Shuper</h2>
+                    <p className="text-[var(--text-dim)] font-bold text-[12px] uppercase tracking-widest mt-3">ai workspace</p>
                 </div>
 
                 <div className="space-y-6">
                     <div className="space-y-2">
-                        <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-2">
-                            <User className="w-3 h-3" /> Your Name
+                        <label className="text-[10px] font-black text-[var(--text-dim)] uppercase tracking-widest flex items-center gap-2">
+                            <User className="w-3 h-3" /> Identity
                         </label>
                         <input 
                             value={name}
                             onChange={e => setName(e.target.value)}
-                            placeholder="e.g. Nathan"
-                            className="w-full bg-[#202020] border border-[#333] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 text-white transition-all"
+                            placeholder="Your Name"
+                            className="w-full bg-[var(--bg-elevated)]/50 border border-[var(--border)] rounded-2xl px-5 py-4 text-sm focus:outline-none focus:border-[var(--text-muted)] text-white transition-all placeholder-[var(--text-dim)]"
                         />
                     </div>
                     <div className="space-y-2">
-                        <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-2">
-                            <Layout className="w-3 h-3" /> Workspace Name
+                        <label className="text-[10px] font-black text-[var(--text-dim)] uppercase tracking-widest flex items-center gap-2">
+                            <Layout className="w-3 h-3" /> Workspace
                         </label>
                         <input 
                             value={workspace}
                             onChange={e => setWorkspace(e.target.value)}
-                            placeholder="e.g. My Creative Lab"
-                            className="w-full bg-[#202020] border border-[#333] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 text-white transition-all"
+                            placeholder="Space Name"
+                            className="w-full bg-[var(--bg-elevated)]/50 border border-[var(--border)] rounded-2xl px-5 py-4 text-sm focus:outline-none focus:border-[var(--text-muted)] text-white transition-all placeholder-[var(--text-dim)]"
                         />
                     </div>
                     <button 
                         onClick={() => name && workspace && onComplete(name, workspace)}
                         disabled={!name || !workspace}
-                        className="w-full py-4 bg-white text-black font-bold rounded-2xl hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+                        className="w-full py-5 bg-[var(--text-main)] text-[var(--bg-primary)] font-black rounded-2xl hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed mt-4 shadow-xl active:scale-[0.98]"
                     >
-                        Start Exploring
+                        Initialize Space
                     </button>
                 </div>
             </div>
@@ -159,50 +158,34 @@ const OnboardingModal: React.FC<{ onComplete: (name: string, workspace: string) 
 };
 
 const DeleteConfirmationModal: React.FC<{ title: string, description: string, onConfirm: () => void, onCancel: () => void }> = ({ title, description, onConfirm, onCancel }) => (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div className="w-full max-w-sm bg-[#1A1A1A] border border-[#333] rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3 text-[#EF4444] mb-4">
-                <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
-                    <Trash2 className="w-5 h-5" />
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="w-full max-w-[360px] bg-[var(--bg-secondary)] border border-[var(--border)] rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 border border-red-500/20">
+                    <Trash2 className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-bold text-white">{title}</h3>
+                <div>
+                    <h3 className="text-lg font-black tracking-tight text-white">System Purge</h3>
+                    <p className="text-[10px] font-bold text-red-500/80 uppercase tracking-widest">Permanent Action</p>
+                </div>
             </div>
-            <p className="text-sm text-gray-400 mb-8 leading-relaxed">{description}</p>
-            <div className="flex gap-3">
+            <p className="text-[13px] text-[var(--text-muted)] font-medium mb-10 leading-relaxed">
+                Confirming will remove "{title}" from the neural archive. This cannot be undone.
+            </p>
+            <div className="flex flex-col gap-2">
+                <button 
+                    onClick={onConfirm}
+                    className="w-full py-4 bg-red-600 text-white font-black rounded-2xl hover:bg-red-500 transition-all active:scale-[0.98] shadow-lg shadow-red-600/10"
+                >
+                    Confirm Delete
+                </button>
                 <button 
                     onClick={onCancel}
-                    className="flex-1 py-2.5 bg-[#2A2A2A] text-white font-semibold rounded-xl hover:bg-[#333] transition-colors border border-[#333]"
+                    className="w-full py-4 bg-[var(--bg-elevated)] text-[var(--text-muted)] font-bold rounded-2xl hover:text-[var(--text-main)] transition-colors"
                 >
                     Cancel
                 </button>
-                <button 
-                    onClick={onConfirm}
-                    className="flex-1 py-2.5 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-500 transition-colors shadow-lg shadow-red-600/10"
-                >
-                    Delete
-                </button>
             </div>
-        </div>
-    </div>
-);
-
-const ModelErrorPopup: React.FC<{ error: string, onClose: () => void }> = ({ error, onClose }) => (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-        <div className="w-full max-w-sm bg-[#1A1A1A] border border-red-900/50 rounded-2xl p-6 shadow-2xl animate-in fade-in duration-200">
-            <div className="flex items-center gap-3 text-red-500 mb-4">
-                <ShieldAlert className="w-6 h-6" />
-                <h3 className="font-bold">Provider Error</h3>
-            </div>
-            <p className="text-sm text-gray-300 mb-2 font-medium">This model appears to be down or returning an error:</p>
-            <div className="bg-black/40 rounded-lg p-3 text-xs font-mono text-red-400 mb-6 max-h-32 overflow-y-auto border border-red-900/20">
-                {error}
-            </div>
-            <button 
-                onClick={onClose}
-                className="w-full py-2.5 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-500 transition-colors"
-            >
-                Dismiss
-            </button>
         </div>
     </div>
 );
@@ -212,13 +195,11 @@ const App: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMobileSessionListOpen, setIsMobileSessionListOpen] = useState(true);
   const [isTourActive, setIsTourActive] = useState(false);
+  const [triggerSearch, setTriggerSearch] = useState(0);
   
   // Logo glow state
   const [logoClicks, setLogoClicks] = useState(0);
   const [isLogoGlowing, setIsLogoGlowing] = useState(false);
-
-  // Global Context Menu state
-  const [globalContextMenu, setGlobalContextMenu] = useState<{ x: number, y: number } | null>(null);
 
   // Persisted State
   const [settings, setSettings] = useStickyState<UserSettings>(DEFAULT_SETTINGS, 'shuper_settings');
@@ -244,11 +225,40 @@ const App: React.FC = () => {
     return !!(process.env.API_KEY || settings.apiKeys.openRouter || settings.apiKeys.openRouterAlt || settings.apiKeys.deepSeek || settings.apiKeys.moonshot);
   }, [settings.apiKeys]);
 
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleGlobalShortcuts = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (e.altKey) {
+        switch (e.key.toLowerCase()) {
+          case 'n':
+            e.preventDefault();
+            handleNewSession();
+            break;
+          case 'p':
+            e.preventDefault();
+            setCurrentView('settings');
+            break;
+          case 's':
+            e.preventDefault();
+            setCurrentView('chat');
+            setIsMobileSessionListOpen(true);
+            setTriggerSearch(prev => prev + 1);
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalShortcuts);
+    return () => window.removeEventListener('keydown', handleGlobalShortcuts);
+  }, [sessions, currentView, activeSessionId]);
+
   useEffect(() => {
       if (settings.onboardingComplete) {
-          if (sessions.length > 0 && !activeSessionId) {
-              // Auto-select is disabled for better mobile experience initially
-          } else if (sessions.length === 0 && currentView === 'chat') {
+          if (sessions.length === 0 && currentView === 'chat') {
               handleNewSession();
           }
       }
@@ -299,30 +309,9 @@ const App: React.FC = () => {
     });
   };
 
-  const handleGlobalContextMenu = (e: React.MouseEvent) => {
-    if (e.defaultPrevented) return;
-    e.preventDefault();
-    setGlobalContextMenu({ x: e.clientX, y: e.clientY });
-  };
-
   const handleUpdateSettings = useCallback((newSettings: UserSettings) => {
-    const updatedVisibleModels = new Set(newSettings.visibleModels);
-    
-    if ((newSettings.apiKeys.openRouter || newSettings.apiKeys.openRouterAlt) && !(settings.apiKeys.openRouter || settings.apiKeys.openRouterAlt)) {
-        OPENROUTER_FREE_MODELS.forEach(m => updatedVisibleModels.add(m));
-    }
-    if (newSettings.apiKeys.deepSeek && !settings.apiKeys.deepSeek) {
-        DEEPSEEK_MODELS.forEach(m => updatedVisibleModels.add(m));
-    }
-    if (newSettings.apiKeys.moonshot && !settings.apiKeys.moonshot) {
-        MOONSHOT_MODELS.forEach(m => updatedVisibleModels.add(m));
-    }
-
-    setSettings({
-        ...newSettings,
-        visibleModels: Array.from(updatedVisibleModels)
-    });
-  }, [settings, setSettings]);
+    setSettings(newSettings);
+  }, [setSettings]);
 
   const handleSelectSession = (id: string) => {
       if (id === activeSessionId) {
@@ -372,6 +361,7 @@ const App: React.FC = () => {
           category: 'TODAY',
           status: 'todo',
           labelIds: [],
+          tasks: [],
           hasNewResponse: false,
           isFlagged: false,
           mode: 'explore'
@@ -405,6 +395,7 @@ const App: React.FC = () => {
   };
 
   const executeAICommands = (text: string, sessionId: string) => {
+    // Process Status
     const statusMatch = text.match(/\[\[STATUS:\s*(.*?)\]\]/);
     if (statusMatch) {
         const newStatus = statusMatch[1].trim().toLowerCase() as SessionStatus;
@@ -413,6 +404,7 @@ const App: React.FC = () => {
         }
     }
 
+    // Process Title
     const titleMatch = text.match(/\[\[TITLE:\s*(.*?)\]\]/);
     if (titleMatch) {
         const newTitle = titleMatch[1].trim();
@@ -421,37 +413,48 @@ const App: React.FC = () => {
         }
     }
 
+    // Process Labels
     const labelMatch = text.match(/\[\[LABEL:\s*(.*?)\]\]/);
     if (labelMatch) {
         const labelName = labelMatch[1].trim();
         const existingLabel = availableLabels.find(l => l.name.toLowerCase() === labelName.toLowerCase());
-        
-        let labelIdToAdd = '';
-        if (existingLabel) {
-            labelIdToAdd = existingLabel.id;
-        } else {
-            const newLabel: Label = {
-                id: Date.now().toString(),
-                name: labelName,
-                color: '#3B82F6'
-            };
+        let lid = existingLabel ? existingLabel.id : null;
+        if (!lid) {
+            const newLabel = { id: Date.now().toString(), name: labelName, color: '#3B82F6' };
             setAvailableLabels(prev => [...prev, newLabel]);
-            labelIdToAdd = newLabel.id;
+            lid = newLabel.id;
         }
+        setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, labelIds: s.labelIds.includes(lid!) ? s.labelIds : [...s.labelIds, lid!] } : s));
+    }
 
-        if (labelIdToAdd) {
-             setSessions(prev => Array.isArray(prev) ? prev.map(s => {
-                 if (s.id !== sessionId) return s;
-                 if (s.labelIds.includes(labelIdToAdd)) return s;
-                 return { ...s, labelIds: [...s.labelIds, labelIdToAdd] };
-             }) : prev);
+    // Process Tasks
+    const addTaskMatch = text.match(/\[\[ADD_TASK:\s*(.*?)\]\]/);
+    if (addTaskMatch) {
+        const taskText = addTaskMatch[1].trim();
+        if (taskText) {
+            setSessions(prev => prev.map(s => (s.id === sessionId ? { ...s, tasks: [...(s.tasks || []), { id: Date.now().toString(), text: taskText, completed: false, createdAt: Date.now() }] } : s)));
         }
+    }
+
+    const doneTaskMatch = text.match(/\[\[DONE_TASK:\s*(.*?)\]\]/);
+    if (doneTaskMatch) {
+        const taskRef = doneTaskMatch[1].trim().toLowerCase();
+        setSessions(prev => prev.map(s => (s.id === sessionId ? { ...s, tasks: (s.tasks || []).map(t => (t.text.toLowerCase().includes(taskRef) ? { ...t, completed: true } : t)) } : s)));
+    }
+
+    const removeTaskMatch = text.match(/\[\[REMOVE_TASK:\s*(.*?)\]\]/);
+    if (removeTaskMatch) {
+        const taskRef = removeTaskMatch[1].trim().toLowerCase();
+        setSessions(prev => prev.map(s => (s.id === sessionId ? { ...s, tasks: (s.tasks || []).filter(t => !t.text.toLowerCase().includes(taskRef)) } : s)));
     }
 
     return text
         .replace(/\[\[STATUS:.*?\]\]/g, '')
         .replace(/\[\[TITLE:.*?\]\]/g, '')
         .replace(/\[\[LABEL:.*?\]\]/g, '')
+        .replace(/\[\[ADD_TASK:.*?\]\]/g, '')
+        .replace(/\[\[DONE_TASK:.*?\]\]/g, '')
+        .replace(/\[\[REMOVE_TASK:.*?\]\]/g, '')
         .trim();
   };
 
@@ -556,7 +559,7 @@ const App: React.FC = () => {
             actualModel = agent.baseModel;
         }
 
-        systemInstruction = `${systemInstruction}\n\n${AI_COMMANDS_INSTRUCTION}`;
+        systemInstruction = `${systemInstruction}\n\n${getSystemInstruction(settings.userName, mode)}`;
         
         const onStreamUpdate = (content: string, thoughtProcess?: string) => {
             setSessionMessages(prev => {
@@ -630,6 +633,7 @@ const App: React.FC = () => {
 
   const updateSessionStatus = (id: string, s: SessionStatus) => setSessions(prev => Array.isArray(prev) ? prev.map(sess => sess.id === id ? { ...sess, status: s } : sess) : prev);
   const updateSessionMode = (id: string, m: SessionMode) => setSessions(prev => Array.isArray(prev) ? prev.map(sess => sess.id === id ? { ...sess, mode: m } : sess) : prev);
+  const updateSessionTasks = (id: string, tasks: Task[]) => setSessions(prev => prev.map(s => s.id === id ? { ...s, tasks } : s));
   const updateSessionLabels = (id: string, lid: string) => setSessions(prev => Array.isArray(prev) ? prev.map(s => {
       if (s.id !== id) return s;
       const hasLabel = s.labelIds.includes(lid);
@@ -666,10 +670,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div 
-        className="flex h-screen w-full bg-[var(--bg-primary)] overflow-hidden text-sm font-inter text-[var(--text-main)] relative"
-        onContextMenu={handleGlobalContextMenu}
-    >
+    <div className="flex h-screen w-full bg-[var(--bg-primary)] overflow-hidden text-sm font-inter text-[var(--text-main)] relative">
       {!settings.onboardingComplete && !isTourActive && (
           <OnboardingModal onComplete={(name, workspace) => {
               setSettings({ ...settings, userName: name, workspaceName: workspace });
@@ -687,33 +688,27 @@ const App: React.FC = () => {
                 setSettings({ ...settings, onboardingComplete: true });
                 setIsTourActive(false);
             }}
+            onNewSession={() => {
+                handleNewSession();
+                setCurrentView('chat');
+            }}
           />
-      )}
-
-      {providerError && (
-          <ModelErrorPopup error={providerError} onClose={() => setProviderError(null)} />
       )}
 
       {deleteConfirmation && (
           <DeleteConfirmationModal 
-              title={`Delete ${deleteConfirmation.type === 'chat' ? 'Conversation' : 'Agent'}?`}
-              description={`Are you sure you want to delete "${deleteConfirmation.title}"?`}
+              title={deleteConfirmation.title}
+              description={deleteConfirmation.type === 'chat' ? 'this conversation' : 'this agent'}
               onConfirm={handleConfirmDelete}
               onCancel={() => setDeleteConfirmation(null)}
           />
       )}
 
       {isMobileSidebarOpen && (
-          <div 
-              className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 animate-in fade-in duration-300" 
-              onClick={() => setIsMobileSidebarOpen(false)}
-          />
+          <div className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 animate-in fade-in duration-300" onClick={() => setIsMobileSidebarOpen(false)} />
       )}
 
-      <div className={`
-          fixed md:relative inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out
-          ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0
-      `}>
+      <div className={`fixed md:relative inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
           <SidebarNavigation 
             currentFilter={currentFilter} 
             onSetFilter={(f) => {
@@ -737,6 +732,7 @@ const App: React.FC = () => {
                 setIsMobileSidebarOpen(false);
             }}
             workspaceName={settings.workspaceName}
+            workspaceIcon={settings.workspaceIcon}
             onShowWhatsNew={() => setIsWhatsNewOpen(true)}
             onCloseMobile={() => setIsMobileSidebarOpen(false)}
             onLogoClick={handleLogoClick}
@@ -749,10 +745,7 @@ const App: React.FC = () => {
       <div className="flex-1 flex overflow-hidden relative">
           {currentView === 'chat' && (
               <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300">
-                <div className={`
-                    w-full md:w-[300px] flex-shrink-0 transition-all duration-300
-                    ${isMobileSessionListOpen ? 'block' : 'hidden'} md:block
-                `}>
+                <div className={`w-full md:w-[300px] flex-shrink-0 transition-all duration-300 ${isMobileSessionListOpen ? 'block' : 'hidden'} md:block`}>
                     <SessionList 
                         sessions={filteredSessions} 
                         activeSessionId={activeSessionId || ''} 
@@ -769,13 +762,11 @@ const App: React.FC = () => {
                         onToggleFlag={toggleSessionFlag}
                         currentFilter={currentFilter}
                         onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+                        triggerSearch={triggerSearch}
                     />
                 </div>
                 
-                <div className={`
-                    flex-1 transition-all duration-300 h-full
-                    ${!isMobileSessionListOpen || !activeSessionId ? 'block' : 'hidden md:block'}
-                `}>
+                <div className={`flex-1 transition-all duration-300 h-full ${!isMobileSessionListOpen || !activeSessionId ? 'block' : 'hidden md:block'}`}>
                     {activeSession ? (
                         <ChatInterface 
                             key={activeSession.id}
@@ -786,6 +777,7 @@ const App: React.FC = () => {
                             isLoading={activeLoading}
                             onUpdateStatus={(status) => updateSessionStatus(activeSessionId!, status)}
                             onUpdateMode={(mode) => updateSessionMode(activeSessionId!, mode)}
+                            onUpdateTasks={(tasks) => updateSessionTasks(activeSessionId!, tasks)}
                             availableLabels={availableLabels}
                             onUpdateLabels={(labelId) => updateSessionLabels(activeSessionId!, labelId)}
                             onCreateLabel={(l) => setAvailableLabels(prev => [...prev, l])}
@@ -795,7 +787,6 @@ const App: React.FC = () => {
                             onToggleFlag={() => toggleSessionFlag(activeSessionId!)}
                             onChangeView={setCurrentView}
                             onNewSession={handleNewSession}
-                            
                             visibleModels={settings.visibleModels}
                             agents={agents}
                             currentModel={activeSessionId ? (sessionModels[activeSessionId] || '') : ''}
@@ -809,6 +800,7 @@ const App: React.FC = () => {
                             onBackToList={() => setIsMobileSessionListOpen(true)}
                             onOpenSidebar={() => setIsMobileSidebarOpen(true)}
                             hasAnyKey={hasAnyKey}
+                            userSettings={settings}
                         />
                     ) : (
                         <div className="flex-1 flex items-center justify-center text-[var(--text-dim)] bg-[var(--bg-tertiary)] flex-col gap-2 h-full">
@@ -820,8 +812,8 @@ const App: React.FC = () => {
                             <div className="w-16 h-16 rounded-2xl bg-[var(--bg-elevated)] flex items-center justify-center mb-4 shadow-lg">
                                 <Inbox className="w-6 h-6 text-[var(--text-muted)]" strokeWidth={1.5} />
                             </div>
-                            <h3 className="text-lg font-medium text-[var(--text-main)]">Welcome to Shuper</h3>
-                            <p className="text-[var(--text-dim)] px-10 text-center">Select a session to start.</p>
+                            <h3 className="text-lg font-medium text-[var(--text-main)] tracking-tight">Active session required</h3>
+                            <p className="text-[var(--text-dim)] px-10 text-center font-medium">Select a history entry or press <kbd className="bg-[var(--bg-elevated)] px-2 py-0.5 rounded border border-[var(--border)] text-[10px] font-bold">Alt+N</kbd>.</p>
                         </div>
                     )}
                 </div>

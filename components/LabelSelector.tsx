@@ -1,12 +1,12 @@
-import React, { useRef, useEffect } from 'react';
-import { Check } from 'lucide-react';
+import React, { useRef, useEffect, useState } from 'react';
+import { Check, Sparkles, Loader2 } from 'lucide-react';
 import { Label } from '../types';
 
 interface LabelSelectorProps {
   availableLabels: Label[];
   selectedLabelIds: string[];
   onToggleLabel: (labelId: string) => void;
-  // onCreateLabel removed as per request
+  onSuggestWithAI: () => Promise<void>;
   onClose: () => void;
   isOpen: boolean;
   position?: { top: number; left: number };
@@ -16,11 +16,13 @@ export const LabelSelector: React.FC<LabelSelectorProps> = ({
   availableLabels, 
   selectedLabelIds, 
   onToggleLabel, 
+  onSuggestWithAI,
   onClose,
   isOpen,
   position 
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [isSuggesting, setIsSuggesting] = useState(false);
 
   useEffect(() => {
       const handleClickOutside = (event: MouseEvent) => {
@@ -34,6 +36,15 @@ export const LabelSelector: React.FC<LabelSelectorProps> = ({
       return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, onClose]);
 
+  const handleAISuggest = async () => {
+    setIsSuggesting(true);
+    try {
+      await onSuggestWithAI();
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   const style: React.CSSProperties = position 
@@ -43,34 +54,49 @@ export const LabelSelector: React.FC<LabelSelectorProps> = ({
   return (
     <div 
         ref={menuRef}
-        className="absolute z-[60] w-56 bg-[#1A1A1A] border border-[#333] rounded-lg shadow-xl py-1 animate-in fade-in zoom-in-95 duration-150 origin-top-left"
+        className="absolute z-[60] w-64 bg-[#1A1A1A] border border-[#333] rounded-2xl shadow-2xl py-2 animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
         style={style}
     >
-      <div className="px-3 py-2 border-b border-[#262626]">
-         <span className="text-xs font-semibold text-[#737373] uppercase tracking-wider">Labels</span>
+      <div className="px-4 py-2.5 border-b border-[#262626] flex items-center justify-between">
+         <span className="text-[10px] font-bold text-[#737373] uppercase tracking-widest">Workspace Taxonomy</span>
       </div>
       
-      <div className="max-h-[200px] overflow-y-auto py-1">
-        {availableLabels.length === 0 && (
-            <div className="px-4 py-2 text-xs text-[#525252] italic">No labels available. Add in Settings.</div>
+      <div className="max-h-[260px] overflow-y-auto py-1.5 custom-scrollbar">
+        {availableLabels.length === 0 ? (
+            <div className="px-5 py-6 text-xs text-[#525252] italic text-center leading-relaxed">No custom labels defined.<br/>Configure them in Settings.</div>
+        ) : (
+          availableLabels.map(label => {
+              const isSelected = selectedLabelIds.includes(label.id);
+              return (
+                  <div 
+                      key={label.id}
+                      onClick={() => onToggleLabel(label.id)}
+                      className="flex items-center justify-between px-4 py-2.5 hover:bg-[#262626] cursor-pointer group transition-colors"
+                  >
+                      <div className="flex items-center gap-3">
+                          <div className="w-2.5 h-2.5 rounded-full shadow-inner" style={{ backgroundColor: label.color }}></div>
+                          <span className={`text-[13px] font-medium ${isSelected ? 'text-white' : 'text-[#A1A1A1] group-hover:text-white'}`}>{label.name}</span>
+                      </div>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-[var(--accent)]" />}
+                  </div>
+              );
+          })
         )}
-        
-        {availableLabels.map(label => {
-            const isSelected = selectedLabelIds.includes(label.id);
-            return (
-                <div 
-                    key={label.id}
-                    onClick={() => onToggleLabel(label.id)}
-                    className="flex items-center justify-between px-3 py-1.5 hover:bg-[#262626] cursor-pointer group transition-colors"
-                >
-                    <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: label.color }}></div>
-                        <span className="text-[13px] text-[#E5E5E5]">{label.name}</span>
-                    </div>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
-                </div>
-            );
-        })}
+      </div>
+
+      <div className="px-2 pt-1 pb-1 border-t border-[#262626] mt-1">
+        <button 
+          onClick={handleAISuggest}
+          disabled={isSuggesting || availableLabels.length === 0}
+          className="w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-[11px] font-bold text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed group"
+        >
+          {isSuggesting ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Sparkles className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+          )}
+          <span>{isSuggesting ? 'IDENTIFYING...' : 'SUGGEST WITH AI'}</span>
+        </button>
       </div>
     </div>
   );

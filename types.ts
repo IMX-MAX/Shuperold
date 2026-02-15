@@ -16,6 +16,13 @@ export interface Attachment {
   size: number;
 }
 
+export interface Task {
+  id: string;
+  text: string;
+  completed: boolean;
+  createdAt: number;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'model';
@@ -33,6 +40,7 @@ export interface Session {
   category: 'TODAY' | 'YESTERDAY' | 'PREVIOUS';
   status: SessionStatus;
   labelIds: string[];
+  tasks?: Task[];
   isSelected?: boolean;
   hasNewResponse?: boolean;
   isFlagged?: boolean;
@@ -51,6 +59,7 @@ export interface UserSettings {
   theme: 'dark' | 'light';
   accentColor: string;
   workspaceName: string;
+  workspaceIcon?: string; // base64
   visibleModels: string[];
   userName: string;
   timezone: string;
@@ -60,6 +69,7 @@ export interface UserSettings {
   baseKnowledge: string;
   sendKey: 'Enter' | 'Ctrl+Enter';
   onboardingComplete: boolean;
+  enableTasks: boolean;
   apiKeys: {
       openRouter: string;
       openRouterAlt: string;
@@ -84,7 +94,6 @@ export const OPENROUTER_FREE_MODELS = [
     'mistralai/mistral-small-3.1-24b-instruct:free'
 ];
 
-// @google/genai guidelines: Use only supported model names. MUST NOT use gemini-1.5-pro or other legacy names.
 export const GEMINI_MODELS = [
     'gemini-3-flash-preview', 
     'gemini-3-pro-preview', 

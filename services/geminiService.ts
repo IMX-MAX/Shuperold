@@ -1,5 +1,5 @@
-import { GoogleGenAI } from "@google/genai";
-import { Attachment, OPENROUTER_FREE_MODELS, SessionMode, UserSettings } from "../types";
+import { GoogleGenAI, Type } from "@google/genai";
+import { Attachment, OPENROUTER_FREE_MODELS, SessionMode, UserSettings, Label } from "../types";
 
 /**
  * Generates a concise title for a session using the Gemini API.
@@ -9,7 +9,6 @@ export const generateSessionTitle = async (
   currentTitle: string,
   _apiKey?: string 
 ): Promise<string> => {
-  // @google/genai guidelines: Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     const chatHistory = history.slice(-6).map(h => ({
@@ -31,11 +30,46 @@ export const generateSessionTitle = async (
       }
     });
     
-    // @google/genai guidelines: Use response.text property directly
     return response.text?.trim() || currentTitle;
   } catch (error) {
     console.error("Title generation error:", error);
     return currentTitle;
+  }
+};
+
+/**
+ * Suggests appropriate labels from available list based on conversation content.
+ */
+export const suggestLabels = async (
+  history: {role: string, parts: any[]}[],
+  availableLabels: Label[]
+): Promise<string[]> => {
+  if (availableLabels.length === 0) return [];
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  try {
+    const labelContext = availableLabels.map(l => `${l.id}: ${l.name}`).join('\n');
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [
+        ...history.slice(-10),
+        {
+          role: 'user',
+          parts: [{ text: `Based on the conversation history provided, which of the following labels apply? Return a JSON array of label IDs only.\nAvailable Labels:\n${labelContext}` }]
+        }
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING }
+        }
+      }
+    });
+    
+    return JSON.parse(response.text || "[]");
+  } catch (error) {
+    console.error("Label suggestion error:", error);
+    return [];
   }
 };
 
@@ -78,7 +112,6 @@ export const sendMessageToGemini = async (
       );
   }
 
-  // @google/genai guidelines: Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
@@ -98,19 +131,20 @@ export const sendMessageToGemini = async (
     if (currentParts.length === 0) currentParts.push({ text: " " });
 
     let finalSystemInstruction = systemInstruction || "";
-    if (mode === 'execute') {
-        finalSystemInstruction += "\nYou are in EXECUTE mode. Be extremely precise, thorough, and provide the most advanced technical solution possible.";
-    }
 
     const config: any = {
         systemInstruction: finalSystemInstruction.trim() || undefined,
     };
 
-    // @google/genai guidelines: Thinking Config is only available for Gemini 3 and 2.5 series models.
     const isThinkingSupported = actualModel.includes('gemini-3') || actualModel.includes('gemini-2.5');
 
-    if (isThinkingSupported && mode === 'execute') {
-        config.thinkingConfig = { thinkingBudget: 32768 }; 
+    if (isThinkingSupported) {
+        if (mode === 'execute') {
+            config.thinkingConfig = { thinkingBudget: 32768 }; 
+        } else {
+            // Explicitly disable thinking to prevent plan-leakage in Explore mode
+            config.thinkingConfig = { thinkingBudget: 0 };
+        }
     }
 
     const responseStream = await ai.models.generateContentStream({
@@ -123,7 +157,6 @@ export const sendMessageToGemini = async (
     let fullText = "";
     for await (const chunk of responseStream) {
       if (signal?.aborted) throw new Error("AbortError");
-      // @google/genai guidelines: Use chunk.text property directly
       const chunkText = chunk.text || "";
       fullText += chunkText;
       if (onUpdate) onUpdate(fullText, undefined); 
@@ -209,7 +242,6 @@ const sendMessageToOpenAICompatible = async (
 
         let response = await tryFetch(keyToTry);
 
-        // Failover logic for OpenRouter dual wielding
         if (response.status === 429 && !trimmedModel.startsWith('deepseek-') && !trimmedModel.startsWith('moonshot-') && apiKeys.openRouterAlt && keyToTry !== apiKeys.openRouterAlt) {
             console.log("Primary OpenRouter key quota hit, switching to alternative key...");
             response = await tryFetch(apiKeys.openRouterAlt);

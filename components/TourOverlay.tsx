@@ -33,9 +33,9 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'mode',
-    targetId: 'tour-mode-selector',
+    targetId: 'tour-input-area', // Target entire box instead of just selector
     title: 'Choose Your Mode',
-    description: 'Explore mode is for standard talk. Execute mode provides advanced technical planning and reasoning.',
+    description: 'Explore mode is for standard talk. Execute mode provides advanced technical planning and reasoning. Try switching now!',
     icon: Zap
   },
   {
@@ -57,13 +57,22 @@ const TOUR_STEPS: TourStep[] = [
 interface TourOverlayProps {
   onComplete: () => void;
   onSkip: () => void;
+  onNewSession?: () => void;
 }
 
-export const TourOverlay: React.FC<TourOverlayProps> = ({ onComplete, onSkip }) => {
+export const TourOverlay: React.FC<TourOverlayProps> = ({ onComplete, onSkip, onNewSession }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
 
   const currentStep = TOUR_STEPS[currentStepIndex];
+
+  // Logic to ensure UI is in correct state for specific steps
+  useEffect(() => {
+    if (currentStep.id === 'mode' && onNewSession) {
+        // Create a session so the input area and mode selector are visible
+        onNewSession();
+    }
+  }, [currentStepIndex]);
 
   useEffect(() => {
     const updateHighlight = () => {
@@ -77,10 +86,12 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ onComplete, onSkip }) 
       }
     };
 
-    updateHighlight();
+    // Use a small timeout to let the UI react to onNewSession if needed
+    const timeout = setTimeout(updateHighlight, 50);
     window.addEventListener('resize', updateHighlight);
     window.addEventListener('scroll', updateHighlight, true);
     return () => {
+      clearTimeout(timeout);
       window.removeEventListener('resize', updateHighlight);
       window.removeEventListener('scroll', updateHighlight, true);
     };
@@ -102,7 +113,7 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ onComplete, onSkip }) 
 
   const spotlightStyle = useMemo(() => {
     if (!highlightRect) return { display: 'none' };
-    const padding = 8;
+    const padding = 12; // Slightly more padding for the "box" look
     return {
       top: highlightRect.top - padding,
       left: highlightRect.left - padding,
@@ -157,7 +168,7 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ onComplete, onSkip }) 
         className="absolute inset-0 bg-black/60 backdrop-blur-[2px] transition-all duration-500"
         style={{
           clipPath: highlightRect 
-            ? `polygon(0% 0%, 0% 100%, ${highlightRect.left - 8}px 100%, ${highlightRect.left - 8}px ${highlightRect.top - 8}px, ${highlightRect.right + 8}px ${highlightRect.top - 8}px, ${highlightRect.right + 8}px ${highlightRect.bottom + 8}px, ${highlightRect.left - 8}px ${highlightRect.bottom + 8}px, ${highlightRect.left - 8}px 100%, 100% 100%, 100% 0%)`
+            ? `polygon(0% 0%, 0% 100%, ${highlightRect.left - 12}px 100%, ${highlightRect.left - 12}px ${highlightRect.top - 12}px, ${highlightRect.right + 12}px ${highlightRect.top - 12}px, ${highlightRect.right + 12}px ${highlightRect.bottom + 12}px, ${highlightRect.left - 12}px ${highlightRect.bottom + 12}px, ${highlightRect.left - 12}px 100%, 100% 100%, 100% 0%)`
             : 'none'
         }}
       />
@@ -165,7 +176,7 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ onComplete, onSkip }) 
       {/* Spotlight Glow */}
       {highlightRect && (
         <div 
-          className="absolute border-2 border-blue-500/50 rounded-2xl shadow-[0_0_40px_rgba(59,130,246,0.3)] transition-all duration-500 pointer-events-none"
+          className="absolute border-2 border-[var(--accent)] rounded-2xl shadow-[0_0_50px_rgba(59,130,246,0.4)] transition-all duration-500 pointer-events-none"
           style={spotlightStyle}
         />
       )}
