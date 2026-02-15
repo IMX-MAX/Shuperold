@@ -13,7 +13,7 @@ import {
   Cpu,
   X,
   ChevronDown,
-  LayoutGrid
+  Sparkles
 } from 'lucide-react';
 import { STATUS_CONFIG } from './StatusSelector';
 import { SessionStatus, Label } from '../types';
@@ -101,12 +101,12 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
             </button>
         </div>
 
-        <div onClick={() => { onChangeView('chat'); onSetFilter('all'); }} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${currentView === 'chat' && currentFilter === 'all' ? 'bg-[var(--bg-elevated)] text-white' : 'hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]'}`}>
+        <div onClick={() => { onChangeView('chat'); onSetFilter('all'); }} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${currentView === 'chat' && currentFilter === 'all' ? 'bg-[var(--bg-elevated)] text-[var(--text-main)] font-semibold' : 'hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]'}`}>
           <Inbox className="w-4 h-4" />
           <span>All Sessions</span>
         </div>
 
-        <div onClick={() => { onChangeView('chat'); onSetFilter('flagged'); }} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${currentView === 'chat' && currentFilter === 'flagged' ? 'bg-[var(--bg-elevated)] text-white' : 'hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]'}`}>
+        <div onClick={() => { onChangeView('chat'); onSetFilter('flagged'); }} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${currentView === 'chat' && currentFilter === 'flagged' ? 'bg-[var(--bg-elevated)] text-[var(--text-main)] font-semibold' : 'hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]'}`}>
           <Flag className="w-4 h-4" />
           <span>Flagged</span>
         </div>
@@ -125,7 +125,7 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
                 <div 
                   key={status} 
                   onClick={() => { onChangeView('chat'); onSetFilter(`status:${status}`); }}
-                  className="flex items-center gap-2.5 px-6 py-1.5 rounded-lg text-[13px] text-[var(--text-dim)] hover:text-white cursor-pointer transition-colors"
+                  className="flex items-center gap-2.5 px-6 py-1.5 rounded-lg text-[13px] text-[var(--text-dim)] hover:text-[var(--text-main)] cursor-pointer transition-colors"
                 >
                   <div className={`w-1.5 h-1.5 rounded-full ${STATUS_CONFIG[status].color.replace('text-', 'bg-')}`} />
                   <span>{STATUS_CONFIG[status].label}</span>
@@ -149,7 +149,7 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
                 <div 
                   key={label.id} 
                   onClick={() => { onChangeView('chat'); onSetFilter(`label:${label.id}`); }}
-                  className="flex items-center gap-2.5 px-6 py-1.5 rounded-lg text-[13px] text-[var(--text-dim)] hover:text-white cursor-pointer transition-colors"
+                  className="flex items-center gap-2.5 px-6 py-1.5 rounded-lg text-[13px] text-[var(--text-dim)] hover:text-[var(--text-main)] cursor-pointer transition-colors"
                 >
                   <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: label.color }} />
                   <span className="truncate">{label.name}</span>
@@ -160,39 +160,39 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
           )}
         </div>
 
-        <div onClick={() => { onChangeView('chat'); onSetFilter('archived'); }} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${currentView === 'chat' && currentFilter === 'archived' ? 'bg-[var(--bg-elevated)] text-white' : 'hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]'}`}>
+        <div onClick={() => { onChangeView('chat'); onSetFilter('archived'); }} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${currentView === 'chat' && currentFilter === 'archived' ? 'bg-[var(--bg-elevated)] text-[var(--text-main)] font-semibold' : 'hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]'}`}>
           <Archive className="w-4 h-4" />
           <span>Archived</span>
         </div>
 
         <div className="my-4 h-[1px] bg-[var(--border)] mx-1" />
 
-        <div onClick={() => onChangeView('agents')} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${currentView === 'agents' ? 'bg-[var(--bg-elevated)] text-white' : 'hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]'}`}>
+        <div onClick={() => onChangeView('agents')} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${currentView === 'agents' ? 'bg-[var(--bg-elevated)] text-[var(--text-main)] font-semibold' : 'hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]'}`}>
           <Cpu className="w-4 h-4" />
           <span>Agents</span>
         </div>
       </div>
 
       <div className="px-3 pb-4 space-y-1">
-        <div onClick={() => onChangeView('settings')} className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg-elevated)] text-[var(--text-muted)] transition-all">
+        <div onClick={() => onChangeView('settings')} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${currentView === 'settings' ? 'bg-[var(--bg-elevated)] text-[var(--text-main)] font-semibold' : 'hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]'}`}>
           <Settings className="w-4 h-4" />
           <span>Settings</span>
         </div>
-        <div onClick={onShowWhatsNew} className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg-elevated)] text-[var(--text-muted)] transition-all">
-          <Archive className="w-4 h-4" />
+        <div onClick={onShowWhatsNew} className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg-elevated)] text-[var(--text-muted)] transition-all group">
+          <Sparkles className="w-4 h-4 text-[var(--text-dim)] group-hover:text-[var(--text-main)] transition-colors" />
           <span>What's New</span>
         </div>
 
         <div className="pt-2">
             <div 
               onClick={() => onChangeView('settings')}
-              className="flex items-center justify-between px-3 py-2 text-[var(--text-muted)] hover:text-white cursor-pointer rounded-lg hover:bg-[var(--bg-elevated)] transition-all"
+              className="flex items-center justify-between px-3 py-2 text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer rounded-lg hover:bg-[var(--bg-elevated)] transition-all"
             >
                 <div className="flex items-center gap-2 overflow-hidden">
-                    <div className="w-5 h-5 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center text-[10px] font-bold border border-[var(--border)] flex-shrink-0">
+                    <div className="w-5 h-5 rounded-full bg-neutral-500/20 text-neutral-500 flex items-center justify-center text-[10px] font-bold border border-neutral-500/20 flex-shrink-0">
                         {workspaceName.charAt(0).toLowerCase()}
                     </div>
-                    <span className="truncate">{workspaceName.toLowerCase()}</span>
+                    <span className="truncate lowercase font-medium">{workspaceName}</span>
                     <ChevronDown className="w-3 h-3 opacity-50" />
                 </div>
                 <HelpCircle className="w-4 h-4 opacity-50 hover:opacity-100 transition-opacity" />

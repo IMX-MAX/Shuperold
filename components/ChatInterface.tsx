@@ -26,7 +26,10 @@ import {
   Zap,
   ListTodo,
   PanelRightOpen,
-  LayoutTemplate
+  LayoutTemplate,
+  PanelRight,
+  Circle,
+  Tag
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -104,7 +107,7 @@ const ThinkingBlock = ({ steps, isGenerating }: { steps: string[], isGenerating?
             </button>
             
             <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                <div className="relative ml-2.5 pl-6 border-l-2 border-[var(--accent)]/30 space-y-5 py-2">
+                <div className="relative ml-2.5 pl-6 border-l-2 border-[var(--text-muted)]/30 space-y-5 py-2">
                     {steps.map((step, idx) => (
                         <div key={idx} className="relative animate-in fade-in slide-in-from-left-2 duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
                             <div className="text-[14px] text-[var(--text-muted)] leading-relaxed font-semibold">{step}</div>
@@ -114,7 +117,7 @@ const ThinkingBlock = ({ steps, isGenerating }: { steps: string[], isGenerating?
                         <div className="flex items-start gap-4 text-[var(--text-dim)] py-2">
                             <div className="mt-1 flex-shrink-0"><WaveLoader /></div>
                             <div className="flex flex-col gap-1">
-                                <span className="font-bold tracking-widest uppercase text-[10px] text-[var(--accent)] italic">Awaiting neural output...</span>
+                                <span className="font-bold tracking-widest uppercase text-[10px] text-[var(--text-main)] italic">Awaiting neural output...</span>
                             </div>
                         </div>
                     )}
@@ -140,6 +143,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [editedTitle, setEditedTitle] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
+  const [editContent, setEditContent] = useState<string>('');
   
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const [isLabelMenuOpen, setIsLabelMenuOpen] = useState(false);
@@ -150,7 +154,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   }, [messages, isLoading]);
 
-  // Handle local shortcuts within ChatInterface (Alt+A, Up Arrow, Alt+T)
+  // Prevent browser context menu globally for this component's area
+  useEffect(() => {
+    const handleGlobalContextMenu = (e: MouseEvent) => {
+        // Prevent default browser menu unless it's on an input or textarea
+        if (!(e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement)) {
+            e.preventDefault();
+        }
+    };
+    window.addEventListener('contextmenu', handleGlobalContextMenu);
+    return () => window.removeEventListener('contextmenu', handleGlobalContextMenu);
+  }, []);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.altKey && e.key.toLowerCase() === 'a') {
       e.preventDefault();
@@ -165,7 +180,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const handleUpArrowOnInput = () => {
     const userMessages = messages.filter(m => m.role === 'user');
     if (userMessages.length > 0) {
-      setEditingMessageId(userMessages[userMessages.length - 1].id);
+      const lastMsg = userMessages[userMessages.length - 1];
+      setEditingMessageId(lastMsg.id);
+      setEditContent(lastMsg.content);
     }
   };
 
@@ -198,6 +215,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setMessageContextMenu({ x: e.clientX, y: e.clientY, messageId: msgId });
   };
 
+  const handleEditMessageAction = (msgId: string) => {
+      const msg = messages.find(m => m.id === msgId);
+      if (msg) {
+          setEditingMessageId(msgId);
+          setEditContent(msg.content);
+      }
+      setMessageContextMenu(null);
+  };
+
   const handleCopyText = (text: string, id: string) => {
       navigator.clipboard.writeText(text).then(() => {
           setCopiedId(id);
@@ -228,8 +254,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     onUpdateTasks(newTasks);
   };
 
-  const StatusIcon = STATUS_CONFIG[session.status].icon;
-
   const processModelOutput = (content: string, mode: SessionMode) => {
     const lines = content.split('\n');
     const planSteps: string[] = [];
@@ -255,27 +279,30 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return { planSteps, mainContent: mainLines.join('\n').trim() };
   };
 
+  const StatusIcon = STATUS_CONFIG[session.status].icon;
+
+  const headerLabelText = session.labelIds.length > 0 
+    ? session.labelIds.map(id => availableLabels.find(l => l.id === id)?.name).filter(Boolean).join(', ')
+    : 'triage';
+
   return (
     <div 
-        className="flex-1 flex h-full bg-[var(--bg-tertiary)] relative font-inter overflow-hidden"
+        className="flex-1 flex h-full bg-[var(--bg-tertiary)] relative font-inter overflow-hidden focus:outline-none"
         onContextMenu={handleChatContextMenu}
         onKeyDown={handleKeyDown}
-        tabIndex={0}
+        tabIndex={-1}
     >
       <div className="flex-1 flex flex-col h-full relative">
-        <div className="h-14 flex items-center justify-between px-3 md:px-6 border-b border-[var(--border)] z-30 absolute top-0 left-0 right-0 bg-[var(--bg-tertiary)]/80 backdrop-blur-md transition-all duration-300">
+        <div className="h-14 flex items-center justify-between px-6 border-b border-[var(--border)] z-30 absolute top-0 left-0 right-0 bg-[var(--bg-tertiary)]/80 backdrop-blur-md">
           <div className="flex items-center gap-2 max-w-[60%]">
               {onBackToList && (
                   <button onClick={onBackToList} className="md:hidden p-1 rounded hover:bg-[var(--bg-elevated)] text-[var(--text-main)]"><ChevronLeft className="w-5 h-5" /></button>
               )}
-              {!onBackToList && onOpenSidebar && (
-                  <button onClick={onOpenSidebar} className="md:hidden p-1 rounded hover:bg-[var(--bg-elevated)] text-[var(--text-main)]"><Menu className="w-5 h-5" /></button>
-              )}
               {isEditingTitle ? (
-                  <input autoFocus className="bg-[var(--bg-elevated)] text-[var(--text-main)] border border-[var(--border)] rounded-xl px-3 py-1 text-sm focus:outline-none focus:border-[var(--accent)] w-full animate-in fade-in zoom-in-95 duration-200" value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} onBlur={handleTitleSave} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleTitleSave(); } }} />
+                  <input autoFocus className="bg-[var(--bg-elevated)] text-[var(--text-main)] border border-[var(--border)] rounded-lg px-3 py-1 text-sm focus:outline-none focus:border-[var(--text-main)] w-full" value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} onBlur={handleTitleSave} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleTitleSave(); } }} />
               ) : (
-                  <div onClick={handleTitleClick} onDoubleClick={handleDoubleclickTitle} className="flex items-center gap-1 text-[var(--text-main)] font-bold text-sm cursor-pointer hover:bg-[var(--bg-elevated)] px-3 py-1.5 rounded-xl transition-all max-w-full truncate select-none active:scale-[0.98]">
-                    <span className="truncate">{session.title}</span>
+                  <div onClick={handleTitleClick} onDoubleClick={handleDoubleclickTitle} className="flex items-center gap-1.5 text-[var(--text-main)] font-semibold text-sm cursor-pointer hover:bg-[var(--bg-elevated)] px-2.5 py-1.5 rounded-lg transition-all max-w-full select-none active:scale-[0.98]">
+                    <span className="truncate lowercase">{session.title}</span>
                     <ChevronDown className="w-3.5 h-3.5 text-[var(--text-dim)]" />
                   </div>
               )}
@@ -287,85 +314,44 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         className="absolute z-50 w-48 bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl py-1.5 text-[13px] animate-in fade-in zoom-in-95 duration-100 origin-top-left"
                         style={{ top: titleMenuPosition.y, left: titleMenuPosition.x }}
                       >
-                          <div 
-                            onClick={() => { handleDoubleclickTitle(); setTitleMenuPosition(null); }}
-                            className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1 transition-colors"
-                          >
-                              <Edit2 className="w-4 h-4" />
-                              <span>Rename Session</span>
-                          </div>
-                          <div 
-                            onClick={() => { onRegenerateTitle(session.id); setTitleMenuPosition(null); }}
-                            className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1 transition-colors"
-                          >
-                              <RefreshCcw className="w-4 h-4" />
-                              <span>Regenerate Title</span>
-                          </div>
+                          <div onClick={() => { handleDoubleclickTitle(); setTitleMenuPosition(null); }} className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1"><Edit2 className="w-4 h-4" /><span>Rename Session</span></div>
+                          <div onClick={() => { onRegenerateTitle(session.id); setTitleMenuPosition(null); }} className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1"><RefreshCcw className="w-4 h-4" /><span>Regenerate Title</span></div>
                           <div className="h-[1px] bg-[#333] my-1 mx-2" />
-                          <div 
-                            onClick={() => { onDeleteSession(); setTitleMenuPosition(null); }}
-                            className="flex items-center gap-3 px-3 py-2 hover:bg-red-500/10 text-red-400 cursor-pointer rounded-lg mx-1 transition-colors"
-                          >
-                              <Trash2 className="w-4 h-4" />
-                              <span>Delete Session</span>
-                          </div>
+                          <div onClick={() => { onDeleteSession(); setTitleMenuPosition(null); }} className="flex items-center gap-3 px-3 py-2 hover:bg-red-500/10 text-red-400 cursor-pointer rounded-lg mx-1"><Trash2 className="w-4 h-4" /><span>Delete Session</span></div>
                       </div>
                   </>
               )}
           </div>
           
-          <div className="flex items-center gap-1.5 md:gap-3">
-               <div className="relative">
-                   <button onClick={() => setIsStatusMenuOpen(true)} className="flex items-center gap-2 px-2 py-1 md:px-3 md:py-1.5 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--border)] border border-[var(--border)] transition-all text-[11px] md:text-xs font-bold text-[var(--text-dim)] hover:text-[var(--text-main)] active:scale-95">
-                       <StatusIcon className={`w-3.5 h-3.5 ${STATUS_CONFIG[session.status].color}`} />
-                       <span className="hidden sm:inline">{STATUS_CONFIG[session.status].label}</span>
-                       <ChevronDown className="w-3 h-3 opacity-50" />
-                   </button>
-                   <StatusSelector isOpen={isStatusMenuOpen} onClose={() => setIsStatusMenuOpen(false)} currentStatus={session.status} onSelect={onUpdateStatus} position={{ top: 40, right: 0 }} />
-               </div>
+          <div className="flex items-center gap-1.5 md:gap-2">
+               <button onClick={() => setIsStatusMenuOpen(true)} className="flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--border)] bg-[#E5E5E5]/5 hover:bg-[#E5E5E5]/10 transition-all text-[11px] font-medium text-[var(--text-muted)] group">
+                   <StatusIcon className={`w-3 h-3 ${STATUS_CONFIG[session.status].color} group-hover:text-white`} />
+                   <span className="hidden sm:inline lowercase">{STATUS_CONFIG[session.status].label}</span>
+                   <ChevronDown className="w-2.5 h-2.5 opacity-50" />
+               </button>
+               <StatusSelector isOpen={isStatusMenuOpen} onClose={() => setIsStatusMenuOpen(false)} currentStatus={session.status} onSelect={onUpdateStatus} position={{ top: 44, right: 100 }} />
                
-               <div className="relative hidden sm:block">
-                   <button onClick={() => setIsLabelMenuOpen(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--border)] border border-[var(--border)] transition-all text-xs font-bold text-[var(--text-dim)] hover:text-[var(--text-main)] active:scale-95">
-                       {session.labelIds.length > 0 ? (
-                           <>
-                               <div className="flex -space-x-1.5">
-                                   {session.labelIds.slice(0, 3).map(id => {
-                                       const label = availableLabels.find(l => l.id === id);
-                                       if(!label) return null;
-                                       return <div key={id} className="w-3 h-3 rounded-full border border-[var(--bg-elevated)] shadow-inner" style={{ backgroundColor: label.color }}></div>;
-                                   })}
-                               </div>
-                               <span>{session.labelIds.length > 3 ? `+${session.labelIds.length - 3}` : 'Tags'}</span>
-                           </>
-                       ) : <span>Triage</span>}
-                       <ChevronDown className="w-3 h-3 opacity-50" />
-                   </button>
-                   <LabelSelector isOpen={isLabelMenuOpen} onClose={() => setIsLabelMenuOpen(false)} availableLabels={availableLabels} selectedLabelIds={session.labelIds} onToggleLabel={onUpdateLabels} onSuggestWithAI={handleSuggestLabels} position={{ top: 40, right: 0 }} />
-               </div>
+               <button onClick={() => setIsLabelMenuOpen(true)} className="flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--border)] bg-[#E5E5E5]/5 hover:bg-[#E5E5E5]/10 transition-all text-[11px] font-medium text-[var(--text-muted)] group max-w-[120px]">
+                   <Tag className="w-3 h-3 text-[var(--text-dim)] group-hover:text-white flex-shrink-0" />
+                   <span className="hidden sm:inline truncate lowercase">{headerLabelText}</span>
+                   <ChevronDown className="w-2.5 h-2.5 opacity-50 flex-shrink-0" />
+               </button>
+               <LabelSelector isOpen={isLabelMenuOpen} onClose={() => setIsLabelMenuOpen(false)} availableLabels={availableLabels} selectedLabelIds={session.labelIds} onToggleLabel={onUpdateLabels} onSuggestWithAI={handleSuggestLabels} position={{ top: 44, right: 60 }} />
 
-               {userSettings?.enableTasks && (
-                   <>
-                       <div className="w-[1px] h-6 bg-[var(--border)] mx-1" />
-                       <button 
-                          onClick={() => setIsTaskPanelOpen(!isTaskPanelOpen)}
-                          className={`p-1.5 rounded-lg transition-all ${
-                            isTaskPanelOpen 
-                              ? 'text-[var(--accent)]' 
-                              : 'text-[var(--text-dim)] hover:text-[var(--text-main)] hover:bg-[var(--bg-elevated)]'
-                          }`}
-                          title="Toggle Task Panel (Alt+T)"
-                        >
-                          <PanelRightOpen className="w-5 h-5" />
-                        </button>
-                   </>
-               )}
+               <div className="w-[1px] h-4 bg-[var(--border)] mx-1" />
+               <button 
+                  onClick={() => setIsTaskPanelOpen(!isTaskPanelOpen)}
+                  className={`p-1.5 rounded-lg transition-all text-[var(--text-dim)] hover:text-white ${isTaskPanelOpen ? 'bg-[var(--bg-elevated)]' : ''}`}
+                >
+                  <PanelRight className="w-4.5 h-4.5" />
+                </button>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pt-20 pb-48 custom-scrollbar" ref={scrollRef}>
           {!hasAnyKey && (
               <div className="max-w-xl mx-auto mt-20 p-8 rounded-3xl bg-[var(--bg-elevated)] border border-[var(--border)] text-center animate-in fade-in zoom-in-95 duration-500 shadow-2xl">
-                  <div className="w-16 h-16 rounded-2xl bg-[var(--accent)]/10 flex items-center justify-center mx-auto mb-6"><Key className="w-8 h-8 text-[var(--accent)]" /></div>
+                  <div className="w-16 h-16 rounded-2xl bg-neutral-500/10 flex items-center justify-center mx-auto mb-6"><Key className="w-8 h-8 text-[var(--text-main)]" /></div>
                   <h2 className="text-xl font-bold mb-3 text-white">System Locked</h2>
                   <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-8">Workspace functionality requires a valid AI provider handshake. Please connect your API keys.</p>
                   <button onClick={() => onChangeView('settings')} className="px-8 py-3.5 bg-white text-black font-bold rounded-2xl hover:bg-gray-100 transition-all active:scale-95 shadow-xl">Initialize Handshake</button>
@@ -381,50 +367,25 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       const showStandaloneThinking = isGenerating && planSteps.length === 0 && !mainContent && session.mode === 'execute';
 
                       return (
-                      <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-message`}>
+                      <div key={msg.id} className={`flex flex-col gap-4 ${msg.role === 'user' ? 'items-end' : 'items-start'} animate-message`}>
                           {msg.role === 'user' ? (
                               <div className="flex flex-col gap-2 max-w-[85%] items-end" onContextMenu={(e) => handleMessageContextMenu(e, msg.id)}>
                                   {msg.attachments && msg.attachments.length > 0 && (
                                       <div className="flex flex-wrap gap-2 justify-end">
                                           {msg.attachments.map((att, i) => (
-                                              <div key={i} className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl p-2.5 text-xs flex items-center gap-2.5 text-[var(--text-main)] shadow-sm hover:shadow-md transition-shadow font-bold">
-                                                  <div className="w-5 h-5 flex items-center justify-center bg-[var(--accent)]/10 text-[var(--accent)] rounded-lg">📎</div>
+                                              <div key={i} className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl p-2.5 text-xs flex items-center gap-2.5 text-[var(--text-main)] shadow-sm font-bold">
+                                                  <div className="w-5 h-5 flex items-center justify-center bg-[var(--text-main)]/10 text-[var(--text-main)] rounded-lg">📎</div>
                                                   <span className="truncate max-w-[120px]">{att.name}</span>
                                               </div>
                                           ))}
                                       </div>
                                   )}
-                                  {editingMessageId === msg.id ? (
-                                      <div className="w-full min-w-[240px] md:min-w-[320px] flex flex-col gap-3 bg-[var(--bg-elevated)] p-5 rounded-2xl border border-[var(--accent)]/30 shadow-2xl animate-in fade-in zoom-in-95">
-                                          <textarea 
-                                              autoFocus
-                                              defaultValue={msg.content}
-                                              className="w-full bg-transparent border-none text-[var(--text-main)] text-[15px] font-medium leading-relaxed resize-none focus:ring-0 outline-none min-h-[120px]"
-                                              onKeyDown={(e) => {
-                                                  if (e.key === 'Enter' && !e.shiftKey) {
-                                                      e.preventDefault();
-                                                      onSendMessage(e.currentTarget.value, msg.attachments || [], false, session.mode || 'explore', msg.id);
-                                                      setEditingMessageId(null);
-                                                  } else if (e.key === 'Escape') setEditingMessageId(null);
-                                              }}
-                                          />
-                                          <div className="flex justify-end gap-3 pt-3 border-t border-[var(--border)]">
-                                              <button onClick={() => setEditingMessageId(null)} className="text-[12px] font-bold text-[var(--text-dim)] hover:text-white px-4 py-2 rounded-xl">Discard</button>
-                                              <button onClick={(e) => {
-                                                  const val = (e.currentTarget.parentElement?.previousElementSibling as HTMLTextAreaElement).value;
-                                                  onSendMessage(val, msg.attachments || [], false, session.mode || 'explore', msg.id);
-                                                  setEditingMessageId(null);
-                                              }} className="text-[12px] bg-white text-black font-bold px-6 py-2 rounded-xl hover:bg-gray-100 transition-all shadow-lg">Re-emit</button>
-                                          </div>
-                                      </div>
-                                  ) : (
-                                      <div className="bg-[var(--bg-elevated)] text-[var(--text-main)] p-4 px-5 rounded-2xl text-[15px] font-medium shadow-sm cursor-default hover:bg-[var(--border)] transition-colors border border-transparent leading-relaxed">{msg.content}</div>
-                                  )}
+                                  <div className="bg-[#E5E5E5]/10 text-[var(--text-main)] p-3 px-5 rounded-[20px] text-[15px] font-medium shadow-sm transition-colors border border-transparent leading-relaxed cursor-default">{msg.content}</div>
                               </div>
                           ) : (
                               <div className="w-full text-[var(--text-main)] leading-relaxed text-[15px] flex flex-col gap-1 group/msg">
                                   {showStandaloneThinking && (
-                                      <div className="flex items-center gap-4 text-[var(--accent)] text-xs md:text-sm animate-pulse ml-1 mb-8 py-2">
+                                      <div className="flex items-center gap-4 text-[var(--text-main)] text-xs md:text-sm animate-pulse ml-1 mb-8 py-2">
                                           <WaveLoader /><span className="font-bold tracking-widest uppercase text-[11px] text-[var(--text-muted)] italic">Awaiting technical synthesis...</span>
                                       </div>
                                   )}
@@ -446,7 +407,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                           </div>
                                                           <SyntaxHighlighter style={vscDarkPlus} language={match[1]} PreTag="div" customStyle={{ margin: 0, padding: '1.25rem', borderRadius: '1rem', background: '#080808', border: '1px solid var(--border)', fontSize: '13px', lineHeight: '1.7' }} {...props}>{codeString}</SyntaxHighlighter>
                                                       </div>
-                                                  ) : ( <code className={`${className} bg-[var(--bg-elevated)] px-2 py-0.5 rounded-lg text-[0.9em] border border-[var(--border)] font-bold text-[var(--accent)]`} {...props}>{children}</code> )
+                                                  ) : ( <code className={`${className} bg-[var(--bg-elevated)] px-2 py-0.5 rounded-lg text-[0.9em] border border-[var(--border)] font-bold text-[var(--text-main)]`} {...props}>{children}</code> )
                                               }
                                           }}>{mainContent}</Markdown>
                                       </div>
@@ -468,9 +429,26 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           )}
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 p-3 md:p-6 bg-gradient-to-t from-[var(--bg-tertiary)] via-[var(--bg-tertiary)] to-transparent z-40">
+        {messageContextMenu && (
+            <>
+                <div className="fixed inset-0 z-[110]" onClick={() => setMessageContextMenu(null)} />
+                <div 
+                    className="fixed z-[120] w-44 bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl py-1.5 text-[13px] animate-in fade-in zoom-in-95 duration-100 origin-top-left"
+                    style={{ top: messageContextMenu.y, left: messageContextMenu.x }}
+                >
+                    <div onClick={() => handleEditMessageAction(messageContextMenu.messageId)} className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1"><Edit2 className="w-3.5 h-3.5" /><span>Edit Message</span></div>
+                    <div onClick={() => { handleCopyText(messages.find(m => m.id === messageContextMenu.messageId)?.content || '', messageContextMenu.messageId); setMessageContextMenu(null); }} className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1"><Copy className="w-3.5 h-3.5" /><span>Copy Text</span></div>
+                </div>
+            </>
+        )}
+
+        <div className="absolute bottom-0 left-0 right-0 p-4 md:p-10 z-40 flex justify-center">
              <InputArea 
-                  onSend={onSendMessage} 
+                  onSend={(text, atts, thinking, mode) => {
+                      onSendMessage(text, atts, thinking, mode, editingMessageId || undefined);
+                      setEditingMessageId(null);
+                      setEditContent('');
+                  }}
                   onStop={onStopGeneration}
                   isLoading={isLoading} 
                   currentStatus={session.status}
@@ -491,8 +469,26 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   onUpdateMode={onUpdateMode}
                   hasAnyKey={hasAnyKey}
                   onUpArrow={handleUpArrowOnInput}
+                  externalValue={editContent}
              />
         </div>
+
+        {chatContextMenu && (
+            <ContextMenu 
+                position={chatContextMenu} 
+                onClose={() => setChatContextMenu(null)}
+                onAction={(action) => {
+                    if (action === 'new_session') onNewSession();
+                    if (action === 'rename') handleDoubleclickTitle();
+                    if (action === 'delete') onDeleteSession();
+                    setChatContextMenu(null);
+                }}
+                currentStatus={session.status}
+                availableLabels={availableLabels}
+                currentLabelIds={session.labelIds}
+                isFlagged={session.isFlagged}
+            />
+        )}
       </div>
 
       {userSettings?.enableTasks && (

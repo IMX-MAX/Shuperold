@@ -77,7 +77,7 @@ export const LabelSelector: React.FC<LabelSelectorProps> = ({
                           <div className="w-2.5 h-2.5 rounded-full shadow-inner" style={{ backgroundColor: label.color }}></div>
                           <span className={`text-[13px] font-medium ${isSelected ? 'text-white' : 'text-[#A1A1A1] group-hover:text-white'}`}>{label.name}</span>
                       </div>
-                      {isSelected && <Check className="w-3.5 h-3.5 text-[var(--accent)]" />}
+                      {isSelected && <Check className="w-3.5 h-3.5 text-[var(--text-main)]" />}
                   </div>
               );
           })
@@ -88,7 +88,7 @@ export const LabelSelector: React.FC<LabelSelectorProps> = ({
         <button 
           onClick={handleAISuggest}
           disabled={isSuggesting || availableLabels.length === 0}
-          className="w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-[11px] font-bold text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed group"
+          className="w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-[11px] font-bold text-[var(--text-main)] hover:bg-[var(--text-main)]/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed group"
         >
           {isSuggesting ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />

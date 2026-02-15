@@ -60,7 +60,7 @@ const ApiKeyInput = ({
         <div className="space-y-1.5">
             <div className="flex items-center justify-between">
                 <label className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-widest">{label}</label>
-                {description && <span className="text-[10px] text-[var(--accent)] font-bold opacity-80">{description}</span>}
+                {description && <span className="text-[10px] text-[var(--text-main)] font-bold opacity-80">{description}</span>}
             </div>
             <div className="relative flex items-center group">
                 <div className="absolute left-3 text-[var(--text-dim)] group-focus-within:text-[var(--text-muted)] transition-colors">
@@ -104,8 +104,8 @@ const ModelList = ({ title, models, visibleModels, onToggle }: { title: string, 
                             className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-[var(--bg-elevated)]/50 transition-all cursor-pointer group"
                         >
                             <span className="text-[13px] font-medium truncate max-w-[80%] text-[var(--text-muted)] group-hover:text-[var(--text-main)]">{model}</span>
-                            <div className={`w-8 h-4 rounded-full relative transition-all duration-300 ${visibleModels.includes(model) ? 'bg-[var(--accent)]/40' : 'bg-[var(--bg-elevated)]'}`}>
-                                <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all duration-300 ${visibleModels.includes(model) ? 'left-4.5 bg-[var(--accent)] shadow-sm' : 'left-0.5 bg-[var(--text-dim)]'}`}></div>
+                            <div className={`w-8 h-4.5 rounded-full relative transition-all duration-300 ${visibleModels.includes(model) ? 'bg-[var(--text-main)]/40' : 'bg-[var(--bg-elevated)] border border-[var(--border)]'}`}>
+                                <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all duration-300 transform ${visibleModels.includes(model) ? 'translate-x-3.5 bg-[var(--text-main)] shadow-sm' : 'translate-x-0.5 bg-[var(--text-dim)]'}`}></div>
                             </div>
                         </div>
                     ))}
@@ -119,8 +119,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
   const [activeTab, setActiveTab] = useState('ai');
   const [newLabelName, setNewLabelName] = useState('');
   const [isAddingLabel, setIsAddingLabel] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const predefinedColors = ['#A1A1A1', '#737373', '#525252', '#3B82F6', '#2563EB', '#1D4ED8'];
+  const predefinedColors = ['#A1A1A1', '#737373', '#525252', '#F5F5F5', '#E5E5E5', '#D1D1D1'];
 
   const sidebarItems = [
     { id: 'ai', title: 'AI', subtitle: 'Model, thinking, connections', icon: Zap },
@@ -155,7 +154,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (re) => { if (re.target?.result) onUpdateSettings({ ...settings, workspaceIcon: re.target.result as string }); };
+      reader.onload = (re) => { 
+          if (re.target?.result) onUpdateSettings({ ...settings, workspaceIcon: re.target.result as string }); 
+          // Reset target value so same file can be uploaded again if needed
+          e.target.value = '';
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -213,7 +216,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                       <div className="bg-[var(--bg-secondary)]/50 border border-[var(--border)] rounded-3xl p-8 space-y-8">
                           <div className="flex items-center justify-between">
                               <h3 className="font-bold text-lg tracking-tight">API Infrastructure</h3>
-                              <div className="px-3 py-1 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] text-[10px] font-bold border border-[var(--accent)]/20 uppercase tracking-widest">Encrypted</div>
+                              <div className="px-3 py-1 rounded-full bg-[var(--text-main)]/10 text-[var(--text-main)] text-[10px] font-bold border border-[var(--text-main)]/20 uppercase tracking-widest">Encrypted</div>
                           </div>
                           <div className="space-y-6">
                               <div className="p-6 rounded-2xl bg-[var(--bg-elevated)]/20 border border-[var(--border)] space-y-6">
@@ -242,10 +245,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                       <div className="bg-[var(--bg-secondary)]/50 border border-[var(--border)] rounded-3xl p-8">
                           <h3 className="font-bold text-lg mb-6 tracking-tight">Interface Theme</h3>
                           <div className="grid grid-cols-2 gap-4">
-                              <div onClick={() => onUpdateSettings({ ...settings, theme: 'light' })} className={`p-6 rounded-2xl border transition-all cursor-pointer flex flex-col items-center gap-4 ${settings.theme === 'light' ? 'border-[var(--accent)] bg-[var(--bg-elevated)] text-[var(--accent)] shadow-inner' : 'border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-elevated)]/50'}`}>
+                              <div onClick={() => onUpdateSettings({ ...settings, theme: 'light' })} className={`p-6 rounded-2xl border transition-all cursor-pointer flex flex-col items-center gap-4 ${settings.theme === 'light' ? 'border-[var(--text-main)] bg-[var(--bg-elevated)] text-[var(--text-main)] shadow-inner' : 'border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-elevated)]/50'}`}>
                                   <div className="w-12 h-12 rounded-full bg-white border border-gray-200" /> <span className="text-[13px] font-bold">Lumina</span>
                               </div>
-                              <div onClick={() => onUpdateSettings({ ...settings, theme: 'dark' })} className={`p-6 rounded-2xl border transition-all cursor-pointer flex flex-col items-center gap-4 ${settings.theme === 'dark' ? 'border-[var(--accent)] bg-[var(--bg-elevated)] text-[var(--accent)] shadow-inner' : 'border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-elevated)]/50'}`}>
+                              <div onClick={() => onUpdateSettings({ ...settings, theme: 'dark' })} className={`p-6 rounded-2xl border transition-all cursor-pointer flex flex-col items-center gap-4 ${settings.theme === 'dark' ? 'border-[var(--text-main)] bg-[var(--bg-elevated)] text-[var(--text-main)] shadow-inner' : 'border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-elevated)]/50'}`}>
                                   <div className="w-12 h-12 rounded-full bg-neutral-900 border border-neutral-800" /><span className="text-[13px] font-bold">Midnight</span>
                               </div>
                           </div>
@@ -266,8 +269,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                       <div className="bg-[var(--bg-secondary)]/50 border border-[var(--border)] rounded-3xl p-8 space-y-8">
                           <div><h3 className="font-bold text-lg mb-1 tracking-tight">Submit Interaction</h3><p className="text-[13px] text-[var(--text-muted)]">Configure how you send messages.</p></div>
                           <div className="grid grid-cols-2 gap-4">
-                              <div onClick={() => onUpdateSettings({...settings, sendKey: 'Enter'})} className={`p-5 rounded-2xl border cursor-pointer flex items-center justify-between transition-all ${settings.sendKey === 'Enter' ? 'border-[var(--accent)] bg-[var(--accent)]/5 text-[var(--accent)] shadow-inner' : 'border-[var(--border)] text-[var(--text-dim)] hover:border-[var(--text-muted)]'}`}><span className="text-[13px] font-bold">Enter</span><Keyboard className="w-4 h-4 opacity-50" /></div>
-                              <div onClick={() => onUpdateSettings({...settings, sendKey: 'Ctrl+Enter'})} className={`p-5 rounded-2xl border cursor-pointer flex items-center justify-between transition-all ${settings.sendKey === 'Ctrl+Enter' ? 'border-[var(--accent)] bg-[var(--accent)]/5 text-[var(--accent)] shadow-inner' : 'border-[var(--border)] text-[var(--text-dim)] hover:border-[var(--text-muted)]'}`}><span className="text-[13px] font-bold">Ctrl + Enter</span><Keyboard className="w-4 h-4 opacity-50" /></div>
+                              <div onClick={() => onUpdateSettings({...settings, sendKey: 'Enter'})} className={`p-5 rounded-2xl border cursor-pointer flex items-center justify-between transition-all ${settings.sendKey === 'Enter' ? 'border-[var(--text-main)] bg-[var(--text-main)]/5 text-[var(--text-main)] shadow-inner' : 'border-[var(--border)] text-[var(--text-dim)] hover:border-[var(--text-muted)]'}`}><span className="text-[13px] font-bold">Enter</span><Keyboard className="w-4 h-4 opacity-50" /></div>
+                              <div onClick={() => onUpdateSettings({...settings, sendKey: 'Ctrl+Enter'})} className={`p-5 rounded-2xl border cursor-pointer flex items-center justify-between transition-all ${settings.sendKey === 'Ctrl+Enter' ? 'border-[var(--text-main)] bg-[var(--text-main)]/5 text-[var(--text-main)] shadow-inner' : 'border-[var(--border)] text-[var(--text-dim)] hover:border-[var(--text-muted)]'}`}><span className="text-[13px] font-bold">Ctrl + Enter</span><Keyboard className="w-4 h-4 opacity-50" /></div>
                           </div>
                       </div>
                   </div>
@@ -278,11 +281,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                       <div className="bg-[var(--bg-secondary)]/50 border border-[var(--border)] rounded-3xl p-8 space-y-8">
                           <div className="flex items-start justify-between">
                             <div><h3 className="font-bold text-lg mb-1 tracking-tight">Identity</h3><p className="text-[13px] text-[var(--text-muted)]">Set your workspace branding.</p></div>
-                            <div onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} className="w-16 h-16 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center cursor-pointer overflow-hidden group transition-all">
-                                <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleIconUpload} />
-                                {settings.workspaceIcon ? <img src={settings.workspaceIcon} alt="Icon" className="w-full h-full object-cover group-hover:opacity-40" /> : <ImageIcon className="w-6 h-6 text-[var(--text-dim)]" />}
-                                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 flex items-center justify-center"><Camera className="w-5 h-5 text-white" /></div>
-                            </div>
+                            <label className="w-16 h-16 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center cursor-pointer overflow-hidden group transition-all relative">
+                                <input type="file" className="hidden" accept="image/*" onChange={handleIconUpload} />
+                                {settings.workspaceIcon ? <img src={settings.workspaceIcon} alt="Icon" className="w-full h-full object-cover group-hover:opacity-40 transition-opacity" /> : <ImageIcon className="w-6 h-6 text-[var(--text-dim)]" />}
+                                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 flex items-center justify-center bg-black/40 transition-opacity">
+                                    <Camera className="w-5 h-5 text-white" />
+                                </div>
+                            </label>
                           </div>
                           <div className="space-y-4">
                               <div className="space-y-1.5"><label className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-widest">Workspace Name</label><input value={settings.workspaceName} onChange={(e) => onUpdateSettings({...settings, workspaceName: e.target.value})} className="w-full bg-[var(--bg-elevated)]/50 border border-[var(--border)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--text-muted)] text-[var(--text-main)]" /></div>

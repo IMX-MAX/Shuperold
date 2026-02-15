@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Inbox, Layout, User, Rocket, ShieldAlert, AlertTriangle, Trash2, Wrench, Menu, PlusCircle, Command, ShieldCheck } from 'lucide-react';
+import { Inbox, Layout, User, Rocket, ShieldAlert, AlertTriangle, Trash2, Wrench, Menu, PlusCircle, Command, ShieldCheck, Loader2 } from 'lucide-react';
 import { SidebarNavigation } from './components/SidebarNavigation';
 import { SessionList } from './components/SessionList';
 import { ChatInterface } from './components/ChatInterface';
@@ -27,12 +27,12 @@ import { sendMessageToGemini, generateSessionTitle } from './services/geminiServ
 const DEFAULT_LABELS: Label[] = [
     { id: '1', name: 'Design', color: '#A1A1A1' },
     { id: '2', name: 'Research', color: '#737373' },
-    { id: '3', name: 'Priority', color: '#3B82F6' },
+    { id: '3', name: 'Priority', color: '#F5F5F5' },
 ];
 
 const DEFAULT_SETTINGS: UserSettings = {
     theme: 'dark',
-    accentColor: '#3B82F6',
+    accentColor: '#F5F5F5',
     workspaceName: 'Acme Space',
     visibleModels: [...GEMINI_MODELS],
     userName: 'Nathan',
@@ -100,7 +100,14 @@ function useStickyState<T>(defaultValue: T, key: string): [T, React.Dispatch<Rea
   });
 
   useEffect(() => {
-    window.localStorage.setItem(key, JSON.stringify(value));
+    try {
+        window.localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+        if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+            console.error("Storage limit exceeded. Large attachments (like images) cannot be saved to history.");
+            // Optional: You could prune old messages here
+        }
+    }
   }, [key, value]);
 
   return [value, setValue];
@@ -224,6 +231,13 @@ const App: React.FC = () => {
   const hasAnyKey = useMemo(() => {
     return !!(process.env.API_KEY || settings.apiKeys.openRouter || settings.apiKeys.openRouterAlt || settings.apiKeys.deepSeek || settings.apiKeys.moonshot);
   }, [settings.apiKeys]);
+
+  // Auto-select the most recent session if none is selected
+  useEffect(() => {
+    if (currentView === 'chat' && !activeSessionId && Array.isArray(sessions) && sessions.length > 0) {
+      handleSelectSession(sessions[0].id);
+    }
+  }, [sessions, activeSessionId, currentView]);
 
   // Global Keyboard Shortcuts
   useEffect(() => {
@@ -420,7 +434,7 @@ const App: React.FC = () => {
         const existingLabel = availableLabels.find(l => l.name.toLowerCase() === labelName.toLowerCase());
         let lid = existingLabel ? existingLabel.id : null;
         if (!lid) {
-            const newLabel = { id: Date.now().toString(), name: labelName, color: '#3B82F6' };
+            const newLabel = { id: Date.now().toString(), name: labelName, color: '#F5F5F5' };
             setAvailableLabels(prev => [...prev, newLabel]);
             lid = newLabel.id;
         }
@@ -542,6 +556,7 @@ const App: React.FC = () => {
             if (m.content && m.content.trim()) parts.push({ text: m.content });
             if (m.attachments && m.attachments.length > 0) {
                 m.attachments.forEach(att => {
+                    if (!att.data) return;
                     const base64Data = att.data.includes('base64,') ? att.data.split('base64,')[1] : att.data;
                     parts.push({ inlineData: { mimeType: att.type, data: base64Data } });
                 });
@@ -606,7 +621,7 @@ const App: React.FC = () => {
 
         setSessionMessages(prev => {
             const msgs = prev[currentSessionId] || [];
-            return { ...prev, [currentSessionId]: msgs.map(m => m.id === aiMessageId ? { ...m, content: "Sorry, I encountered an error." } : m) };
+            return { ...prev, [currentSessionId]: msgs.map(m => m.id === aiMessageId ? { ...m, content: `System Error: ${errorText}` } : m) };
         });
     } finally {
         setSessionLoading(prev => ({ ...prev, [currentSessionId]: false }));
@@ -810,10 +825,8 @@ const App: React.FC = () => {
                                 </button>
                             </div>
                             <div className="w-16 h-16 rounded-2xl bg-[var(--bg-elevated)] flex items-center justify-center mb-4 shadow-lg">
-                                <Inbox className="w-6 h-6 text-[var(--text-muted)]" strokeWidth={1.5} />
+                                <Loader2 className="w-6 h-6 text-[var(--accent)] animate-spin" strokeWidth={2} />
                             </div>
-                            <h3 className="text-lg font-medium text-[var(--text-main)] tracking-tight">Active session required</h3>
-                            <p className="text-[var(--text-dim)] px-10 text-center font-medium">Select a history entry or press <kbd className="bg-[var(--bg-elevated)] px-2 py-0.5 rounded border border-[var(--border)] text-[10px] font-bold">Alt+N</kbd>.</p>
                         </div>
                     )}
                 </div>

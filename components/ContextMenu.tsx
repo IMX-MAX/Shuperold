@@ -70,7 +70,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                 onAction('new_session');
                 onClose();
             }}
-            className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] hover:text-white rounded-lg cursor-pointer transition-colors text-blue-400"
+            className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] hover:text-white rounded-lg cursor-pointer transition-colors text-[var(--text-main)]"
         >
            <PlusCircle className="w-4 h-4" />
            <span className="font-semibold">New Session</span>
@@ -105,7 +105,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                        >
                            <cfg.icon className={`w-3.5 h-3.5 ${cfg.color}`} />
                            <span>{cfg.label}</span>
-                           {key === currentStatus && <CheckCircle2 className="w-3.5 h-3.5 ml-auto text-blue-400" />}
+                           {key === currentStatus && <CheckCircle2 className="w-3.5 h-3.5 ml-auto text-[var(--text-main)]" />}
                        </div>
                    ))}
                </div>
@@ -144,7 +144,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                                >
                                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: label.color }}></div>
                                    <span className="truncate">{label.name}</span>
-                                   {isSelected && <CheckCircle2 className="w-3.5 h-3.5 ml-auto text-blue-400" />}
+                                   {isSelected && <CheckCircle2 className="w-3.5 h-3.5 ml-auto text-[var(--text-main)]" />}
                                </div>
                            )
                        })

@@ -43,10 +43,12 @@ export const SessionList: React.FC<SessionListProps> = ({
 }) => {
   const [statusMenuOpenId, setStatusMenuOpenId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<React.CSSProperties | undefined>(undefined);
+  const [indicatorStyle, setIndicatorStyle] = useState<React.CSSProperties>({ opacity: 0 });
   
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, sessionId: string } | null>(null);
 
@@ -56,6 +58,22 @@ export const SessionList: React.FC<SessionListProps> = ({
       setTimeout(() => searchInputRef.current?.focus(), 50);
     }
   }, [triggerSearch]);
+
+  // Handle Indicator Animation
+  useEffect(() => {
+    if (activeSessionId && listRef.current) {
+        const activeElement = listRef.current.querySelector(`[data-session-id="${activeSessionId}"]`) as HTMLElement;
+        if (activeElement) {
+            setIndicatorStyle({
+                opacity: 1,
+                transform: `translateY(${activeElement.offsetTop + 8}px)`, // Adjusted for internal padding
+                height: `${activeElement.offsetHeight - 16}px`, // Adjusted for internal padding
+            });
+        }
+    } else {
+        setIndicatorStyle({ opacity: 0 });
+    }
+  }, [activeSessionId, sessions]);
 
   const displayedSessions = sessions.filter(s => 
       s.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -111,7 +129,7 @@ export const SessionList: React.FC<SessionListProps> = ({
   };
 
   return (
-    <div className="w-full h-full bg-[var(--bg-secondary)] flex flex-col relative z-10 transition-all duration-300">
+    <div className="w-full h-full bg-[var(--bg-secondary)] flex flex-col relative z-10 transition-all duration-300 border-r border-[var(--border)]">
       <div className="h-14 flex items-center px-4 border-b border-[var(--border)] relative overflow-hidden">
          <div className={`absolute left-0 right-0 px-4 flex items-center justify-between transition-all duration-300 transform ${isSearchOpen ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
              <div className="flex items-center gap-3">
@@ -120,7 +138,7 @@ export const SessionList: React.FC<SessionListProps> = ({
                          <Menu className="w-5 h-5 text-[var(--text-main)]" />
                      </button>
                  )}
-                 <span className="font-medium text-[var(--text-main)] text-sm">All Sessions</span>
+                 <span className="font-semibold text-[var(--text-main)] text-sm tracking-tight">All Sessions</span>
              </div>
              <Search className="w-4 h-4 text-[var(--text-dim)] cursor-pointer hover:text-[var(--text-main)] transition-colors" onClick={() => setIsSearchOpen(true)} />
          </div>
@@ -140,9 +158,15 @@ export const SessionList: React.FC<SessionListProps> = ({
          </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 py-4 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto px-2 py-4 custom-scrollbar relative" ref={listRef}>
+        {/* Animated Shared Indicator Bar */}
+        <div 
+            className="absolute left-0 w-[3px] bg-[var(--text-main)] rounded-full z-20 active-indicator-bar pointer-events-none"
+            style={indicatorStyle}
+        />
+
         {displayedSessions.length > 0 && <div className="px-2 mb-2 text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-widest">TODAY</div>}
-        <div className="space-y-[2px]">
+        <div className="space-y-1">
             {displayedSessions.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-3 opacity-60">
                     <MessageSquareDashed className="w-10 h-10 text-[var(--text-dim)]" strokeWidth={1.5} />
@@ -154,26 +178,40 @@ export const SessionList: React.FC<SessionListProps> = ({
             ) : (
                 displayedSessions.map((session) => {
                     const isActive = session.id === activeSessionId;
+                    const StatusIcon = STATUS_CONFIG[session.status]?.icon || Circle;
+                    const statusColor = isActive ? 'text-[var(--text-main)]' : (STATUS_CONFIG[session.status]?.color || 'text-[var(--text-dim)]');
+
                     return (
-                        <div
-                            key={session.id}
-                            onClick={() => onSelectSession(session.id)}
-                            onContextMenu={(e) => handleContextMenu(e, session.id)}
-                            className={`group flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 border-l-2 ${isActive ? 'bg-[var(--bg-elevated)] border-[var(--accent)]' : 'hover:bg-[var(--bg-tertiary)] border-transparent'}`}
-                        >
-                            <div className="mt-1 flex-shrink-0" onClick={(e) => handleStatusClick(e, session.id)}>
-                                <Circle className={`w-4 h-4 text-[var(--text-dim)] group-hover:text-[var(--text-muted)]`} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className={`text-[14px] font-semibold truncate ${session.status === 'done' ? 'text-[var(--text-dim)] line-through' : 'text-white'}`}>
-                                    {session.title}
+                        <div key={session.id} data-session-id={session.id} className="relative flex items-stretch">
+                            <div
+                                onClick={() => onSelectSession(session.id)}
+                                onContextMenu={(e) => handleContextMenu(e, session.id)}
+                                className={`group flex-1 flex items-start gap-3 p-3 ml-2 rounded-lg cursor-pointer transition-all duration-200 ${isActive ? 'bg-[var(--bg-elevated)] shadow-sm' : 'hover:bg-[var(--bg-elevated)]/50'}`}
+                            >
+                                <div className="mt-1 flex-shrink-0" onClick={(e) => handleStatusClick(e, session.id)}>
+                                    <StatusIcon className={`w-4 h-4 ${isActive ? 'opacity-100' : 'opacity-60'} ${statusColor} group-hover:opacity-100 transition-opacity`} strokeWidth={isActive ? 2.5 : 2} />
                                 </div>
-                                <div className="flex items-center justify-between mt-1">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-bold bg-[#262626] text-[var(--text-muted)] px-1.5 py-0.5 rounded uppercase tracking-tighter">Explore</span>
-                                        {session.isFlagged && <Flag className="w-3 h-3 text-red-500 fill-red-500" />}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between">
+                                        <div className={`text-[14px] font-semibold truncate ${isActive ? 'text-[var(--text-main)]' : (session.status === 'done' ? 'text-[var(--text-dim)] line-through' : 'text-[var(--text-main)]')}`}>
+                                            {session.title}
+                                        </div>
+                                        <span className="text-[11px] text-[var(--text-dim)] font-medium flex-shrink-0 ml-2">1d</span>
                                     </div>
-                                    <span className="text-[11px] text-[var(--text-dim)]">1d</span>
+                                    <div className="flex items-center justify-between mt-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[9px] font-bold bg-[var(--bg-tertiary)] text-[var(--text-muted)] px-1.5 py-0.5 rounded uppercase tracking-tighter border border-[var(--border)]">{session.mode || 'Explore'}</span>
+                                            <div className="flex items-center gap-1">
+                                                {session.labelIds?.map(lid => {
+                                                    const label = availableLabels.find(l => l.id === lid);
+                                                    return label ? (
+                                                        <div key={lid} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: label.color }} />
+                                                    ) : null;
+                                                })}
+                                            </div>
+                                            {session.isFlagged && <Flag className="w-3 h-3 text-red-500 fill-red-500" />}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
