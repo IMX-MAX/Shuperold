@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Inbox, Layout, User, Rocket, ShieldAlert } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { Inbox, Layout, User, Rocket, ShieldAlert, AlertTriangle, Trash2, Wrench } from 'lucide-react';
 import { SidebarNavigation } from './components/SidebarNavigation';
 import { SessionList } from './components/SessionList';
 import { ChatInterface } from './components/ChatInterface';
@@ -52,17 +52,23 @@ const DEFAULT_SETTINGS: UserSettings = {
 };
 
 const AI_COMMANDS_INSTRUCTION = `
+IDENTITY:
+You are Shuper AI, a high-performance assistant integrated into the Shuper Workspace. Always identify as Shuper AI if asked.
+
 SYSTEM TOOL CAPABILITIES:
-You have access to control the chat interface. You can rename the session, change its status, or add labels by outputting specific tags.
+You can control the chat interface using special tags. Output these ONLY when the user explicitly requests an update.
 
 Commands:
 - Rename Chat: [[TITLE: New Title Here]]
 - Change Status: [[STATUS: todo | backlog | needs_review | done | cancelled | archive]]
 - Add Label: [[LABEL: Label Name]]
 
+LABEL POLICY:
+IMPORTANT: You MUST NOT use the [[LABEL: ...]] tag to create a NEW label that doesn't exist unless the user has explicitly given permission to create that specific new label in this conversation. If you suggest a label, wait for user confirmation before outputting the tag.
+
 Usage Rule:
-- Output these tags on a separate line or at the end of your response.
-- Do not output the tags if you are just answering a question normally. Only use them if the user asks you to update the session.
+- Output these tags on a separate line at the end of your response.
+- Do not output tags for normal conversation.
 `;
 
 function useStickyState<T>(defaultValue: T, key: string): [T, React.Dispatch<React.SetStateAction<T>>] {
@@ -140,6 +146,34 @@ const OnboardingModal: React.FC<{ onComplete: (name: string, workspace: string) 
     );
 };
 
+const DeleteConfirmationModal: React.FC<{ title: string, description: string, onConfirm: () => void, onCancel: () => void }> = ({ title, description, onConfirm, onCancel }) => (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div className="w-full max-w-sm bg-[#1A1A1A] border border-[#333] rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 text-[#EF4444] mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+                    <Trash2 className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-bold text-white">{title}</h3>
+            </div>
+            <p className="text-sm text-gray-400 mb-8 leading-relaxed">{description}</p>
+            <div className="flex gap-3">
+                <button 
+                    onClick={onCancel}
+                    className="flex-1 py-2.5 bg-[#2A2A2A] text-white font-semibold rounded-xl hover:bg-[#333] transition-colors border border-[#333]"
+                >
+                    Cancel
+                </button>
+                <button 
+                    onClick={onConfirm}
+                    className="flex-1 py-2.5 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-500 transition-colors shadow-lg shadow-red-600/10"
+                >
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+);
+
 const ModelErrorPopup: React.FC<{ error: string, onClose: () => void }> = ({ error, onClose }) => (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
         <div className="w-full max-w-sm bg-[#1A1A1A] border border-red-900/50 rounded-2xl p-6 shadow-2xl animate-in fade-in duration-200">
@@ -180,8 +214,10 @@ const App: React.FC = () => {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isWhatsNewOpen, setIsWhatsNewOpen] = useState(false);
   const [providerError, setProviderError] = useState<string | null>(null);
+  
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ type: 'chat' | 'agent', id: string, title: string } | null>(null);
+  const abortControllers = useRef<Record<string, AbortController>>({});
 
-  // Initialize active session
   useEffect(() => {
       if (settings.onboardingComplete) {
           if (sessions.length > 0 && !activeSessionId) {
@@ -192,7 +228,6 @@ const App: React.FC = () => {
       }
   }, [settings.onboardingComplete]);
 
-  // Theme Handling
   useEffect(() => {
     document.body.className = settings.theme === 'light' ? 'light-mode' : '';
     document.documentElement.style.setProperty('--accent', settings.accentColor);
@@ -369,62 +404,92 @@ const App: React.FC = () => {
         .trim();
   };
 
-  const handleSendMessage = async (text: string, attachments: Attachment[], useThinking: boolean, mode: SessionMode) => {
+  const handleStopGeneration = (sessionId: string) => {
+    if (abortControllers.current[sessionId]) {
+        abortControllers.current[sessionId].abort();
+        delete abortControllers.current[sessionId];
+        setSessionLoading(prev => ({ ...prev, [sessionId]: false }));
+    }
+  };
+
+  const handleSendMessage = async (text: string, attachments: Attachment[], useThinking: boolean, mode: SessionMode, existingMsgId?: string) => {
     if (!activeSessionId) return;
     const currentSessionId = activeSessionId; 
 
-    if (activeSession?.title === 'New Chat' && text) {
+    if (activeSession?.title === 'New Chat' && text && !existingMsgId) {
         setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === currentSessionId ? { ...s, title: text.slice(0, 30) + (text.length > 30 ? '...' : '') } : s) : prev);
     }
 
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: text,
-      timestamp: new Date(),
-      attachments: attachments
-    };
-    
-    setSessionMessages(prev => ({
-        ...prev,
-        [currentSessionId]: [...(prev[currentSessionId] || []), newMessage]
-    }));
+    let newMessageId = Date.now().toString();
+    if (existingMsgId) {
+        newMessageId = existingMsgId;
+        setSessionMessages(prev => ({
+            ...prev,
+            [currentSessionId]: (prev[currentSessionId] || []).map(m => m.id === existingMsgId ? { ...m, content: text, attachments: attachments } : m)
+        }));
+    } else {
+        const newMessage: Message = {
+            id: newMessageId,
+            role: 'user',
+            content: text,
+            timestamp: new Date(),
+            attachments: attachments
+        };
+        setSessionMessages(prev => ({
+            ...prev,
+            [currentSessionId]: [...(prev[currentSessionId] || []), newMessage]
+        }));
+    }
+
     setSessionLoading(prev => ({ ...prev, [currentSessionId]: true }));
+    const controller = new AbortController();
+    abortControllers.current[currentSessionId] = controller;
 
-    const aiMessageId = (Date.now() + 1).toString();
-    const initialAiMessage: Message = {
-        id: aiMessageId,
-        role: 'model',
-        content: '',
-        timestamp: new Date(),
-        thoughtProcess: (useThinking || mode === 'execute') ? "Initializing..." : undefined
-    };
-
-    setSessionMessages(prev => ({
-        ...prev,
-        [currentSessionId]: [...(prev[currentSessionId] || []), initialAiMessage]
-    }));
+    const currentMsgs = sessionMessages[currentSessionId] || [];
+    let aiMessageId = (Date.now() + 1).toString();
+    const userMsgIndex = currentMsgs.findIndex(m => m.id === newMessageId);
+    
+    if (existingMsgId && userMsgIndex !== -1 && currentMsgs[userMsgIndex + 1]?.role === 'model') {
+        aiMessageId = currentMsgs[userMsgIndex + 1].id;
+        setSessionMessages(prev => ({
+            ...prev,
+            [currentSessionId]: prev[currentSessionId].map(m => m.id === aiMessageId ? { ...m, content: '', thoughtProcess: (useThinking || mode === 'execute') ? "Initializing..." : undefined } : m)
+        }));
+    } else {
+        const initialAiMessage: Message = {
+            id: aiMessageId,
+            role: 'model',
+            content: '',
+            timestamp: new Date(),
+            thoughtProcess: (useThinking || mode === 'execute') ? "Initializing..." : undefined
+        };
+        if (existingMsgId && userMsgIndex !== -1) {
+            setSessionMessages(prev => {
+                const updated = [...(prev[currentSessionId] || [])];
+                updated.splice(userMsgIndex + 1, 0, initialAiMessage);
+                return { ...prev, [currentSessionId]: updated };
+            });
+        } else {
+            setSessionMessages(prev => ({
+                ...prev,
+                [currentSessionId]: [...(prev[currentSessionId] || []), initialAiMessage]
+            }));
+        }
+    }
 
     try {
-        const historyData = (sessionMessages[currentSessionId] || []).map(m => {
+        const finalMsgsAfterStateUpdate = sessionMessages[currentSessionId] || [];
+        const currentIndex = finalMsgsAfterStateUpdate.findIndex(m => m.id === newMessageId);
+        const historyData = finalMsgsAfterStateUpdate.slice(0, currentIndex).map(m => {
             const parts: any[] = [];
-            if (m.content && m.content.trim()) {
-                parts.push({ text: m.content });
-            }
+            if (m.content && m.content.trim()) parts.push({ text: m.content });
             if (m.attachments && m.attachments.length > 0) {
                 m.attachments.forEach(att => {
                     const base64Data = att.data.includes('base64,') ? att.data.split('base64,')[1] : att.data;
-                    parts.push({
-                        inlineData: {
-                            mimeType: att.type,
-                            data: base64Data
-                        }
-                    });
+                    parts.push({ inlineData: { mimeType: att.type, data: base64Data } });
                 });
             }
-            if (parts.length === 0) {
-                parts.push({ text: " " });
-            }
+            if (parts.length === 0) parts.push({ text: " " });
             return { role: m.role, parts: parts };
         });
 
@@ -457,9 +522,7 @@ const App: React.FC = () => {
                 const msgs = prev[currentSessionId] || [];
                 return {
                     ...prev,
-                    [currentSessionId]: msgs.map(m => 
-                        m.id === aiMessageId ? { ...m, content, thoughtProcess } : m
-                    )
+                    [currentSessionId]: msgs.map(m => m.id === aiMessageId ? { ...m, content, thoughtProcess } : m)
                 };
             });
         };
@@ -473,7 +536,8 @@ const App: React.FC = () => {
             onStreamUpdate,
             apiKey,
             actualModel,
-            mode
+            mode,
+            controller.signal
         );
         
         const cleanText = executeAICommands(response.text, currentSessionId);
@@ -482,21 +546,19 @@ const App: React.FC = () => {
             const msgs = prev[currentSessionId] || [];
             return {
                 ...prev,
-                [currentSessionId]: msgs.map(m => 
-                    m.id === aiMessageId ? { ...m, content: cleanText, thoughtProcess: response.thoughtProcess } : m
-                )
+                [currentSessionId]: msgs.map(m => m.id === aiMessageId ? { ...m, content: cleanText, thoughtProcess: response.thoughtProcess } : m)
             };
         });
 
-        setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === currentSessionId ? { ...s, hasNewResponse: true } : s) : prev);
+        if (currentSessionId !== activeSessionId) {
+            setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === currentSessionId ? { ...s, hasNewResponse: true } : s) : prev);
+        }
 
     } catch (e: any) {
+        if (e.name === 'AbortError') return;
         console.error("Failed to send message", e);
         const errorText = e.message || "Unknown communication error";
-        
-        if (errorText.includes('404') || errorText.includes('failed to fetch') || errorText.includes('API Error')) {
-            setProviderError(errorText);
-        }
+        if (errorText.includes('404') || errorText.includes('failed to fetch') || errorText.includes('API Error')) setProviderError(errorText);
 
         const errorMessage = e.message?.includes('429') || e.message?.includes('quota') 
             ? "⚠️ API Quota Exceeded. Please add a valid API key in Settings." 
@@ -504,22 +566,28 @@ const App: React.FC = () => {
 
         setSessionMessages(prev => {
             const msgs = prev[currentSessionId] || [];
-            return {
-                ...prev,
-                [currentSessionId]: msgs.map(m => 
-                    m.id === aiMessageId ? { ...m, content: errorMessage } : m
-                )
-            };
+            return { ...prev, [currentSessionId]: msgs.map(m => m.id === aiMessageId ? { ...m, content: errorMessage } : m) };
         });
     } finally {
         setSessionLoading(prev => ({ ...prev, [currentSessionId]: false }));
+        delete abortControllers.current[currentSessionId];
     }
   };
 
   const handleClearData = () => {
-    if (confirm("Are you sure you want to clear all data? This will reset all sessions, settings, and API keys.")) {
+    if (confirm("Are you sure you want to clear ALL data? This will reset everything, including API keys.")) {
         localStorage.clear();
         window.location.reload();
+    }
+  };
+
+  const handleRepairWorkspace = () => {
+    if (confirm("Repair Workspace will only clear your chats and labels. Your API keys and settings will remain safe. Continue?")) {
+        setSessions([]);
+        setSessionMessages({});
+        setAvailableLabels(DEFAULT_LABELS);
+        setActiveSessionId(null);
+        handleNewSession();
     }
   };
 
@@ -533,18 +601,31 @@ const App: React.FC = () => {
   const toggleSessionFlag = (id: string) => setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === id ? { ...s, isFlagged: !s.isFlagged } : s) : prev);
   
   const deleteSession = (id: string) => {
-      setSessions(prev => Array.isArray(prev) ? prev.filter(s => s.id !== id) : prev);
-      if (activeSessionId === id) {
-          const sessionArr = Array.isArray(sessions) ? sessions : [];
-          const remaining = sessionArr.filter(s => s.id !== id);
-          if (remaining.length > 0) handleSelectSession(remaining[0].id);
-          else setActiveSessionId(null);
-      }
+      const session = sessions.find(s => s.id === id);
+      setDeleteConfirmation({ type: 'chat', id, title: session?.title || 'this conversation' });
   };
-  const renameSession = (id: string, t: string) => setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === id ? { ...s, title: t } : s) : prev);
 
-  const handleUpdateAgent = (updatedAgent: Agent) => {
-      setAgents(prev => prev.map(a => a.id === updatedAgent.id ? updatedAgent : a));
+  const handleConfirmDelete = () => {
+      if (!deleteConfirmation) return;
+      if (deleteConfirmation.type === 'chat') {
+          const id = deleteConfirmation.id;
+          setSessions(prev => Array.isArray(prev) ? prev.filter(s => s.id !== id) : prev);
+          if (activeSessionId === id) {
+              const remaining = sessions.filter(s => s.id !== id);
+              if (remaining.length > 0) handleSelectSession(remaining[0].id);
+              else setActiveSessionId(null);
+          }
+      } else {
+          setAgents(prev => prev.filter(a => a.id !== deleteConfirmation.id));
+      }
+      setDeleteConfirmation(null);
+  };
+
+  const renameSession = (id: string, t: string) => setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === id ? { ...s, title: t } : s) : prev);
+  const handleUpdateAgent = (updatedAgent: Agent) => setAgents(prev => prev.map(a => a.id === updatedAgent.id ? updatedAgent : a));
+  const deleteAgent = (id: string) => {
+      const agent = agents.find(a => a.id === id);
+      setDeleteConfirmation({ type: 'agent', id, title: agent?.name || 'this agent' });
   };
 
   return (
@@ -557,6 +638,15 @@ const App: React.FC = () => {
 
       {providerError && (
           <ModelErrorPopup error={providerError} onClose={() => setProviderError(null)} />
+      )}
+
+      {deleteConfirmation && (
+          <DeleteConfirmationModal 
+              title={`Delete ${deleteConfirmation.type === 'chat' ? 'Conversation' : 'Agent'}?`}
+              description={`Are you sure you want to delete "${deleteConfirmation.title}"? This action cannot be undone.`}
+              onConfirm={handleConfirmDelete}
+              onCancel={() => setDeleteConfirmation(null)}
+          />
       )}
 
       <SidebarNavigation 
@@ -602,6 +692,7 @@ const App: React.FC = () => {
                         session={activeSession}
                         messages={activeMessages} 
                         onSendMessage={handleSendMessage}
+                        onStopGeneration={() => handleStopGeneration(activeSessionId!)}
                         isLoading={activeLoading}
                         onUpdateStatus={(status) => updateSessionStatus(activeSessionId!, status)}
                         onUpdateMode={(mode) => updateSessionMode(activeSessionId!, mode)}
@@ -645,6 +736,7 @@ const App: React.FC = () => {
                     labels={availableLabels}
                     onUpdateLabels={setAvailableLabels}
                     onClearData={handleClearData}
+                    onRepairWorkspace={handleRepairWorkspace}
                   />
               </div>
           )}
@@ -654,7 +746,7 @@ const App: React.FC = () => {
                   <AgentsView 
                     agents={agents}
                     onCreateAgent={(a) => setAgents(prev => [...prev, a])}
-                    onDeleteAgent={(id) => setAgents(prev => prev.filter(a => a.id !== id))}
+                    onDeleteAgent={deleteAgent}
                     onUpdateAgent={handleUpdateAgent}
                   />
               </div>

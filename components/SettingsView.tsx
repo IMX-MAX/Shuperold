@@ -17,7 +17,8 @@ import {
   MessageSquare,
   Globe,
   Keyboard,
-  AlertTriangle
+  AlertTriangle,
+  Wrench
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -26,6 +27,7 @@ interface SettingsViewProps {
   labels: Label[];
   onUpdateLabels: (labels: Label[]) => void;
   onClearData: () => void;
+  onRepairWorkspace: () => void;
 }
 
 const ApiKeyInput = ({ 
@@ -116,7 +118,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onUpdateSettings,
   labels,
   onUpdateLabels,
-  onClearData
+  onClearData,
+  onRepairWorkspace
 }) => {
   const [activeTab, setActiveTab] = useState('general');
   const [newLabelName, setNewLabelName] = useState('');
@@ -214,6 +217,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                   />
                               </div>
                           </div>
+                      </div>
+
+                      <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-6">
+                          <div className="flex items-center gap-3 text-blue-500 mb-2">
+                              <Wrench className="w-5 h-5" />
+                              <h3 className="font-medium text-lg">Maintenance</h3>
+                          </div>
+                          <p className="text-sm text-gray-400 mb-6">Repair workspace will clear all chats and labels, but keep your API keys and settings safe. Use this if the app feels slow or cluttered.</p>
+                          <button 
+                            onClick={onRepairWorkspace}
+                            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-bold transition-colors"
+                          >
+                              Repair Workspace
+                          </button>
                       </div>
 
                       <div className="bg-red-950/20 border border-red-900/40 rounded-xl p-6">

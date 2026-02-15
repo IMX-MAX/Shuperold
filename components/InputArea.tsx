@@ -10,7 +10,7 @@ import {
   ChevronDown,
   Trash2,
   Compass,
-  ZapIcon
+  Square
 } from 'lucide-react';
 import { Attachment, Agent, Label, SessionStatus, SessionMode } from '../types';
 import { ModelSelector } from './ModelSelector';
@@ -19,6 +19,7 @@ import { LabelSelector } from './LabelSelector';
 
 interface InputAreaProps {
   onSend: (text: string, attachments: Attachment[], useThinking: boolean, mode: SessionMode) => void;
+  onStop?: () => void;
   isLoading: boolean;
   currentStatus: SessionStatus;
   currentLabelIds: string[];
@@ -40,6 +41,7 @@ interface InputAreaProps {
 
 export const InputArea: React.FC<InputAreaProps> = ({ 
     onSend, 
+    onStop,
     isLoading,
     currentStatus,
     currentLabelIds,
@@ -61,12 +63,10 @@ export const InputArea: React.FC<InputAreaProps> = ({
   const [isThinking, setIsThinking] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   
-  // Menus
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const [isModeMenuOpen, setIsModeMenuOpen] = useState(false);
   
-  // Specific menu for individual labels
   const [activeLabelId, setActiveLabelId] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -92,7 +92,11 @@ export const InputArea: React.FC<InputAreaProps> = ({
   };
 
   const handleSend = () => {
-      if ((!input.trim() && attachments.length === 0) || isLoading) return;
+      if (isLoading) {
+          onStop?.();
+          return;
+      }
+      if ((!input.trim() && attachments.length === 0)) return;
       onSend(input, attachments, isThinking, currentMode);
       setInput('');
       setAttachments([]);
@@ -156,9 +160,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
     <div className="max-w-4xl mx-auto w-full px-4 mb-2">
       <div className="relative bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl shadow-2xl flex flex-col overflow-visible transition-all duration-200">
         
-        {/* Top Toolbar - Compact */}
         <div className="flex items-center justify-between px-2 pt-2 pb-0.5 bg-transparent">
-            {/* Left: Execute Dropdown */}
             <div className="relative">
                 <button 
                     onClick={() => setIsModeMenuOpen(!isModeMenuOpen)}
@@ -196,7 +198,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
                 )}
             </div>
 
-            {/* Right: Labels & Status */}
             <div className="flex items-center gap-1.5">
                 {currentLabelIds.map(labelId => {
                     const label = availableLabels.find(l => l.id === labelId);
@@ -233,7 +234,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
                     );
                 })}
 
-                {/* Status Selector - Adjusted to open UPWARDS */}
                 <div className="relative">
                     <button 
                         onClick={() => setIsStatusMenuOpen(!isStatusMenuOpen)}
@@ -254,7 +254,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
             </div>
         </div>
 
-        {/* Attachments Preview Area */}
         {attachments.length > 0 && (
             <div className="px-3 pt-1.5 flex gap-2 overflow-x-auto custom-scrollbar">
                 {attachments.map((att, i) => (
@@ -277,7 +276,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
             </div>
         )}
 
-        {/* Main Text Input - Shorter min-height and slightly tighter padding */}
         <textarea
           ref={textareaRef}
           value={input}
@@ -287,12 +285,9 @@ export const InputArea: React.FC<InputAreaProps> = ({
           placeholder={isLoading ? "AI is thinking..." : "Ask Shuper or type / for commands"}
           className="w-full bg-transparent border-0 text-[#E5E5E5] placeholder-[#444] px-3.5 py-1.5 focus:ring-0 focus:outline-none resize-none min-h-[40px] max-h-[300px] overflow-y-auto custom-scrollbar text-[14px]"
           rows={1}
-          disabled={isLoading}
         />
 
-        {/* Bottom Toolbar - Compact */}
         <div className="flex items-center justify-between px-2 pb-2 pt-0 bg-transparent">
-            {/* Left Icons */}
             <div className="flex items-center gap-2 px-1">
                 <input 
                     type="file" 
@@ -310,7 +305,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
                 </button>
             </div>
 
-            {/* Right Controls */}
             <div className="flex items-center gap-2">
                 {isThinking && (
                     <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[#2A2A2A]/50 border border-[#333] text-[#F59E0B]">
@@ -319,7 +313,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
                     </div>
                 )}
                 
-                {/* Model Selector */}
                 <div className="relative">
                     <button 
                         onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
@@ -345,17 +338,18 @@ export const InputArea: React.FC<InputAreaProps> = ({
                     />
                 </div>
 
-                {/* Send Button */}
                 <button 
                     onClick={handleSend}
-                    disabled={(!input.trim() && attachments.length === 0) || isLoading}
+                    disabled={(!input.trim() && attachments.length === 0 && !isLoading)}
                     className={`w-7 h-7 rounded-lg transition-all duration-200 flex items-center justify-center ${
-                        (!input.trim() && attachments.length === 0) || isLoading
+                        (!input.trim() && attachments.length === 0 && !isLoading)
                             ? 'bg-[#2A2A2A] text-[#444] cursor-not-allowed'
-                            : 'bg-[#EEE] text-[#000] hover:bg-white shadow-md'
+                            : isLoading 
+                                ? 'bg-white text-black hover:bg-gray-100 shadow-lg scale-105' 
+                                : 'bg-[#EEE] text-[#000] hover:bg-white shadow-md'
                     }`}
                 >
-                    {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowUp className="w-3.5 h-3.5" strokeWidth={3} />}
+                    {isLoading ? <Square className="w-3 h-3 fill-current" /> : <ArrowUp className="w-3.5 h-3.5" strokeWidth={3} />}
                 </button>
             </div>
         </div>

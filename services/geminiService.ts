@@ -3,7 +3,6 @@ import { Attachment, OPENROUTER_FREE_MODELS, SessionMode } from "../types";
 
 /**
  * Generates a concise title for a session using the Gemini API.
- * Adheres to the rule of using process.env.API_KEY exclusively for Gemini calls.
  */
 export const generateSessionTitle = async (
   history: {role: string, parts: any[]}[], 
@@ -50,7 +49,8 @@ export const sendMessageToGemini = async (
   onUpdate?: (content: string, thoughtProcess?: string) => void,
   apiKeyFromSettings?: string,
   modelName: string = 'gemini-3-flash-preview',
-  mode: SessionMode = 'explore'
+  mode: SessionMode = 'explore',
+  signal?: AbortSignal
 ): Promise<{ text: string; thoughtProcess?: string }> => {
   
   const trimmedModel = modelName.trim();
@@ -71,11 +71,11 @@ export const sendMessageToGemini = async (
           useThinking, 
           onUpdate, 
           apiKeyFromSettings, 
-          actualModel
+          actualModel,
+          signal
       );
   }
 
-  // --- GOOGLE GEMINI SDK LOGIC ---
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   
   try {
@@ -83,7 +83,7 @@ export const sendMessageToGemini = async (
     if (message && message.trim()) currentParts.push({ text: message });
     
     attachments.forEach(att => {
-        const base64Data = att.data.split(',')[1] || att.data;
+        const base64Data = att.data.includes('base64,') ? att.data.split('base64,')[1] : att.data;
         currentParts.push({
             inlineData: {
                 mimeType: att.type,
@@ -112,11 +112,13 @@ export const sendMessageToGemini = async (
     const responseStream = await ai.models.generateContentStream({
       model: actualModel,
       contents: [...history, { role: 'user', parts: currentParts }],
-      config: config
+      config: config,
+      signal
     });
 
     let fullText = "";
     for await (const chunk of responseStream) {
+      if (signal?.aborted) throw new Error("AbortError");
       const chunkText = chunk.text || "";
       fullText += chunkText;
       if (onUpdate) onUpdate(fullText, undefined); 
@@ -124,14 +126,14 @@ export const sendMessageToGemini = async (
 
     return { text: fullText };
   } catch (error: any) {
+    if (error.name === 'AbortError' || error.message === 'AbortError') {
+        return { text: "[Stopped by user]" };
+    }
     console.error("Gemini API Error:", error);
     return { text: `Error: ${error.message || "Failed to communicate with Gemini"}` };
   }
 };
 
-/**
- * Internal helper for OpenAI-compatible streaming chat completions (OpenRouter, DeepSeek, Moonshot).
- */
 const sendMessageToOpenAICompatible = async (
     message: string, 
     history: {role: string, parts: any[]}[], 
@@ -139,7 +141,8 @@ const sendMessageToOpenAICompatible = async (
     useThinking: boolean,
     onUpdate: ((content: string, thoughtProcess?: string) => void) | undefined,
     apiKey: string | undefined, 
-    modelName: string
+    modelName: string,
+    signal?: AbortSignal
 ): Promise<{ text: string; thoughtProcess?: string }> => {
     
     if (!apiKey) return { text: `API Key for ${modelName} missing. Please add it in Settings.` };
@@ -152,7 +155,6 @@ const sendMessageToOpenAICompatible = async (
     } else if (trimmedModel.startsWith('moonshot-')) {
         fullUrl = 'https://api.moonshot.cn/v1/chat/completions';
     } else {
-        // Default to OpenRouter
         fullUrl = 'https://openrouter.ai/api/v1/chat/completions';
     }
 
@@ -181,7 +183,8 @@ const sendMessageToOpenAICompatible = async (
                 model: trimmedModel,
                 messages: messages,
                 stream: true
-            })
+            }),
+            signal
         });
 
         if (!response.ok) {
@@ -190,7 +193,6 @@ const sendMessageToOpenAICompatible = async (
                 const errorData = await response.json();
                 errorMessage += ` - ${errorData.error?.message || errorData.error || 'Unknown error'}`;
             } catch (e) {
-                // If it's not JSON, try text
                 const text = await response.text().catch(() => '');
                 if (text) errorMessage += ` - ${text.slice(0, 100)}`;
             }
@@ -224,13 +226,12 @@ const sendMessageToOpenAICompatible = async (
                         fullText += content;
                         if (onUpdate) onUpdate(fullText);
                     }
-                } catch (e) {
-                    // Silently catch partial JSON chunks in stream
-                }
+                } catch (e) {}
             }
         }
         return { text: fullText };
     } catch (error: any) {
+        if (error.name === 'AbortError') return { text: "[Stopped by user]" };
         console.error(`${trimmedModel} API Error:`, error);
         return { text: `${error.message || "Failed to communicate with provider API"}` };
     }

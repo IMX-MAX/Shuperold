@@ -89,12 +89,11 @@ export const SessionList: React.FC<SessionListProps> = ({
               onUpdateSessionStatus(sessionId, newStatus);
           }
       } else if (action === 'rename') {
+          // Inline renaming is handled via ChatInterface's title state or side effect
+          // This call triggers the rename flow if needed
           const session = sessions.find(s => s.id === sessionId);
           if (session) {
-              const newTitle = prompt("Rename session:", session.title);
-              if (newTitle && newTitle.trim()) {
-                  onRenameSession(sessionId, newTitle.trim());
-              }
+             onRenameSession(sessionId, session.title); 
           }
       } else if (action === 'regenerate_title') {
           onRegenerateTitle(sessionId);
@@ -126,7 +125,6 @@ export const SessionList: React.FC<SessionListProps> = ({
   return (
     <div className="w-[300px] flex-shrink-0 bg-[var(--bg-secondary)] border-r border-[var(--border)] flex flex-col h-full relative z-10 transition-all duration-300">
       <div className="h-14 flex items-center px-4 border-b border-transparent relative overflow-hidden">
-         {/* Title State */}
          <div 
             className={`absolute left-0 right-0 px-4 flex items-center justify-between transition-all duration-300 transform ${
                 isSearchOpen ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'
@@ -139,7 +137,6 @@ export const SessionList: React.FC<SessionListProps> = ({
             />
          </div>
 
-         {/* Search State */}
          <div 
             className={`absolute left-0 right-0 px-4 flex items-center gap-2 transition-all duration-300 transform ${
                 isSearchOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'

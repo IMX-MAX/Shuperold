@@ -8,7 +8,8 @@ import {
   Edit2, 
   RefreshCcw, 
   Trash2, 
-  ChevronRight
+  ChevronRight,
+  CheckCircle2
 } from 'lucide-react';
 import { SessionStatus, Label } from '../types';
 import { STATUS_CONFIG } from './StatusSelector';
@@ -46,8 +47,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   }, [onClose]);
 
   // Adjust position if it goes off screen
-  const adjustedLeft = Math.min(position.x, window.innerWidth - 240); // 240 is approx width
-  const adjustedTop = Math.min(position.y, window.innerHeight - 300);
+  const adjustedLeft = Math.min(position.x, window.innerWidth - 220); 
+  const adjustedTop = Math.min(position.y, window.innerHeight - 350);
 
   const style: React.CSSProperties = {
     top: adjustedTop,
@@ -58,36 +59,39 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     <div 
       ref={menuRef}
       style={style}
-      className="fixed z-[100] w-56 bg-[#262626] border border-[var(--border)] rounded-xl shadow-2xl py-1.5 text-[var(--text-main)] text-[13px] animate-in fade-in zoom-in-95 duration-150 origin-top-left"
+      className="fixed z-[100] w-52 bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl py-1.5 text-[13px] text-[#A1A1A1] animate-in fade-in zoom-in-95 duration-100 origin-top-left"
       onClick={(e) => e.stopPropagation()} 
     >
       <div className="px-1.5 space-y-0.5">
         {/* Status Submenu Trigger */}
         <div 
-           className="relative flex items-center justify-between px-3 py-2 hover:bg-[var(--accent)] hover:text-white rounded-lg cursor-pointer group transition-colors"
+           className="relative flex items-center justify-between px-3 py-2 hover:bg-[#2A2A2A] hover:text-white rounded-lg cursor-pointer group transition-colors"
            onMouseEnter={() => setActiveSubmenu('status')}
-           onMouseLeave={() => setActiveSubmenu(null)}
         >
            <div className="flex items-center gap-3">
-             <Circle className="w-4 h-4 text-[var(--text-dim)] group-hover:text-white" />
+             <Circle className="w-4 h-4" />
              <span>Status</span>
            </div>
-           <ChevronRight className="w-3.5 h-3.5 text-[var(--text-dim)] group-hover:text-white" />
+           <ChevronRight className="w-3.5 h-3.5" />
 
            {activeSubmenu === 'status' && (
-               <div className="absolute left-full top-0 ml-1.5 w-48 bg-[#262626] border border-[var(--border)] rounded-xl shadow-xl py-1.5 animate-in fade-in slide-in-from-left-2 duration-150 z-[110]">
-                   {(Object.keys(STATUS_CONFIG) as SessionStatus[]).map(status => (
+               <div 
+                  className="absolute left-full top-[-6px] ml-1 w-44 bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl py-1 animate-in fade-in slide-in-from-left-1 duration-100 z-[110]"
+                  onMouseLeave={() => setActiveSubmenu(null)}
+               >
+                   {(Object.entries(STATUS_CONFIG) as [SessionStatus, any][]).map(([key, cfg]) => (
                        <div 
-                          key={status}
+                          key={key}
                           onClick={(e) => {
                               e.stopPropagation();
-                              onAction('update_status', status);
+                              onAction('update_status', key);
                               onClose();
                           }}
-                          className="flex items-center gap-3 px-3 py-2 hover:bg-[var(--accent)] hover:text-white cursor-pointer mx-1 rounded-md"
+                          className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] hover:text-white cursor-pointer mx-1 rounded-lg transition-colors"
                        >
-                           <div className={`w-2 h-2 rounded-full ${status === currentStatus ? 'bg-[var(--text-main)] group-hover:bg-white' : 'bg-transparent border border-[var(--text-dim)]'}`}></div>
-                           <span>{STATUS_CONFIG[status].label}</span>
+                           <cfg.icon className={`w-3.5 h-3.5 ${cfg.color}`} />
+                           <span>{cfg.label}</span>
+                           {key === currentStatus && <CheckCircle2 className="w-3.5 h-3.5 ml-auto text-blue-400" />}
                        </div>
                    ))}
                </div>
@@ -96,20 +100,22 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
         {/* Labels Submenu Trigger */}
         <div 
-           className="relative flex items-center justify-between px-3 py-2 hover:bg-[var(--accent)] hover:text-white rounded-lg cursor-pointer group transition-colors"
+           className="relative flex items-center justify-between px-3 py-2 hover:bg-[#2A2A2A] hover:text-white rounded-lg cursor-pointer group transition-colors"
            onMouseEnter={() => setActiveSubmenu('labels')}
-           onMouseLeave={() => setActiveSubmenu(null)}
         >
            <div className="flex items-center gap-3">
-             <Tag className="w-4 h-4 text-[var(--text-dim)] group-hover:text-white" />
+             <Tag className="w-4 h-4" />
              <span>Labels</span>
            </div>
-           <ChevronRight className="w-3.5 h-3.5 text-[var(--text-dim)] group-hover:text-white" />
+           <ChevronRight className="w-3.5 h-3.5" />
 
            {activeSubmenu === 'labels' && (
-               <div className="absolute left-full top-0 ml-1.5 w-48 bg-[#262626] border border-[var(--border)] rounded-xl shadow-xl py-1.5 animate-in fade-in slide-in-from-left-2 duration-150 z-[110]">
+               <div 
+                  className="absolute left-full top-0 ml-1 w-44 bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl py-1 animate-in fade-in slide-in-from-left-1 duration-100 z-[110]"
+                  onMouseLeave={() => setActiveSubmenu(null)}
+               >
                    {availableLabels.length === 0 ? (
-                       <div className="px-3 py-2 text-[var(--text-dim)] italic">No labels created</div>
+                       <div className="px-3 py-2 text-[#525252] italic">No labels</div>
                    ) : (
                        availableLabels.map(label => {
                            const isSelected = currentLabelIds.includes(label.id);
@@ -120,13 +126,11 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                                       e.stopPropagation();
                                       onAction('toggle_label', label.id);
                                   }}
-                                  className="flex items-center justify-between px-3 py-2 hover:bg-[var(--accent)] hover:text-white cursor-pointer mx-1 rounded-md"
+                                  className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] hover:text-white cursor-pointer mx-1 rounded-lg transition-colors"
                                >
-                                   <div className="flex items-center gap-2">
-                                       <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: label.color }}></div>
-                                       <span>{label.name}</span>
-                                   </div>
-                                   {isSelected && <div className="w-1.5 h-1.5 bg-current rounded-full"></div>}
+                                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: label.color }}></div>
+                                   <span className="truncate">{label.name}</span>
+                                   {isSelected && <CheckCircle2 className="w-3.5 h-3.5 ml-auto text-blue-400" />}
                                </div>
                            )
                        })
@@ -141,9 +145,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                onAction('toggle_flag'); 
                onClose();
            }}
-           className="flex items-center gap-3 px-3 py-2 hover:bg-[var(--accent)] hover:text-white rounded-lg cursor-pointer group transition-colors"
+           className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] hover:text-white rounded-lg cursor-pointer transition-colors"
         >
-           <Flag className={`w-4 h-4 ${isFlagged ? 'text-red-500 fill-red-500' : 'text-[var(--text-dim)]'} group-hover:text-white group-hover:fill-transparent`} />
+           <Flag className={`w-4 h-4 ${isFlagged ? 'text-red-400 fill-red-400' : ''}`} />
            <span>{isFlagged ? 'Unflag' : 'Flag'}</span>
         </div>
          <div 
@@ -152,18 +156,18 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                 onAction('toggle_archive');
                 onClose();
             }}
-            className="flex items-center gap-3 px-3 py-2 hover:bg-[var(--accent)] hover:text-white rounded-lg cursor-pointer group transition-colors"
+            className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] hover:text-white rounded-lg cursor-pointer transition-colors"
          >
-           <Archive className="w-4 h-4 text-[var(--text-dim)] group-hover:text-white" />
+           <Archive className="w-4 h-4" />
            <span>{currentStatus === 'archive' ? 'Unarchive' : 'Archive'}</span>
         </div>
-        <div className="flex items-center gap-3 px-3 py-2 hover:bg-[var(--accent)] hover:text-white rounded-lg cursor-pointer group transition-colors">
-           <Mail className="w-4 h-4 text-[var(--text-dim)] group-hover:text-white" />
+        <div className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] hover:text-white rounded-lg cursor-pointer transition-colors">
+           <Mail className="w-4 h-4" />
            <span>Mark as Unread</span>
         </div>
       </div>
       
-      <div className="h-[1px] bg-[var(--border)] my-1 mx-2" />
+      <div className="h-[1px] bg-[#333] my-1 mx-2" />
       
       <div className="px-1.5 space-y-0.5">
         <div 
@@ -172,9 +176,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                 onAction('rename');
                 onClose();
             }}
-            className="flex items-center gap-3 px-3 py-2 hover:bg-[var(--accent)] hover:text-white rounded-lg cursor-pointer group transition-colors"
+            className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] hover:text-white rounded-lg cursor-pointer transition-colors"
         >
-           <Edit2 className="w-4 h-4 text-[var(--text-dim)] group-hover:text-white" />
+           <Edit2 className="w-4 h-4" />
            <span>Rename</span>
         </div>
         <div 
@@ -183,14 +187,14 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                 onAction('regenerate_title');
                 onClose();
             }}
-            className="flex items-center gap-3 px-3 py-2 hover:bg-[var(--accent)] hover:text-white rounded-lg cursor-pointer group transition-colors"
+            className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] hover:text-white rounded-lg cursor-pointer transition-colors"
         >
-           <RefreshCcw className="w-4 h-4 text-[var(--text-dim)] group-hover:text-white" />
+           <RefreshCcw className="w-4 h-4" />
            <span>Regenerate Title</span>
         </div>
       </div>
       
-      <div className="h-[1px] bg-[var(--border)] my-1 mx-2" />
+      <div className="h-[1px] bg-[#333] my-1 mx-2" />
       
       <div className="px-1.5">
         <div 
@@ -199,9 +203,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                 onAction('delete');
                 onClose();
             }}
-            className="flex items-center gap-3 px-3 py-2 hover:bg-red-600 hover:text-white text-red-500 rounded-lg cursor-pointer group transition-colors"
+            className="flex items-center gap-3 px-3 py-2 hover:bg-red-500/20 hover:text-red-400 text-red-400/80 rounded-lg cursor-pointer transition-all"
         >
-           <Trash2 className="w-4 h-4 group-hover:text-white" />
+           <Trash2 className="w-4 h-4" />
            <span>Delete</span>
         </div>
       </div>
