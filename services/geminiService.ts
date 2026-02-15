@@ -7,7 +7,7 @@ import { Attachment, OPENROUTER_FREE_MODELS, SessionMode, UserSettings, Label } 
 export const generateSessionTitle = async (
   history: {role: string, parts: any[]}[], 
   currentTitle: string,
-  _apiKey?: string 
+  modelName: string = 'gemini-3-flash-preview'
 ): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
@@ -17,7 +17,7 @@ export const generateSessionTitle = async (
     }));
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: modelName,
       contents: [
         ...chatHistory,
         { 
