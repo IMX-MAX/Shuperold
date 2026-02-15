@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Inbox, X, Flag } from 'lucide-react';
+import { Search, Inbox, X, Flag, Tag, Archive } from 'lucide-react';
 import { Session, SessionStatus, Label } from '../types';
 import { STATUS_CONFIG, StatusSelector } from './StatusSelector';
 import { ContextMenu } from './ContextMenu';
@@ -91,7 +91,6 @@ export const SessionList: React.FC<SessionListProps> = ({
       } else if (action === 'rename') {
           const session = sessions.find(s => s.id === sessionId);
           if (session) {
-              // Use prompt for reliable renaming
               const newTitle = prompt("Rename session:", session.title);
               if (newTitle && newTitle.trim()) {
                   onRenameSession(sessionId, newTitle.trim());
@@ -108,6 +107,22 @@ export const SessionList: React.FC<SessionListProps> = ({
       }
   };
 
+  const getHeaderTitle = () => {
+    if (currentFilter === 'all') return 'All Sessions';
+    if (currentFilter === 'flagged') return 'Flagged';
+    if (currentFilter === 'archived') return 'Archived';
+    if (currentFilter.startsWith('status:')) {
+        const status = currentFilter.split(':')[1];
+        return STATUS_CONFIG[status as SessionStatus]?.label || 'Status Filter';
+    }
+    if (currentFilter.startsWith('label:')) {
+        const lid = currentFilter.split(':')[1];
+        const label = availableLabels.find(l => l.id === lid);
+        return label ? label.name : 'Label Filter';
+    }
+    return 'Sessions';
+  };
+
   return (
     <div className="w-[300px] flex-shrink-0 bg-[var(--bg-secondary)] border-r border-[var(--border)] flex flex-col h-full relative z-10 transition-all duration-300">
       <div className="h-14 flex items-center px-4 border-b border-transparent relative overflow-hidden">
@@ -117,7 +132,7 @@ export const SessionList: React.FC<SessionListProps> = ({
                 isSearchOpen ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'
             }`}
          >
-             <span className="font-medium text-[var(--text-main)] text-sm">All Sessions</span>
+             <span className="font-medium text-[var(--text-main)] text-sm">{getHeaderTitle()}</span>
              <Search 
                 className="w-4 h-4 text-[var(--text-dim)] cursor-pointer hover:text-[var(--text-main)] transition-colors" 
                 onClick={() => setIsSearchOpen(true)}
@@ -207,7 +222,6 @@ export const SessionList: React.FC<SessionListProps> = ({
                                                     {session.isFlagged && (
                                                         <Flag className="w-3 h-3 text-red-500 fill-red-500 ml-1" />
                                                     )}
-                                                    {/* Render Label Dots */}
                                                     {session.labelIds.length > 0 && (
                                                         <div className="flex items-center gap-1 flex-shrink-0 ml-1">
                                                             {session.labelIds.map(labelId => {
@@ -226,7 +240,6 @@ export const SessionList: React.FC<SessionListProps> = ({
                                                 </div>
                                                 <div className="flex items-center justify-between mt-1.5">
                                                      <div className="flex items-center gap-2">
-                                                         {/* Notification Badge */}
                                                          {session.hasNewResponse && (
                                                              <span className="text-[10px] font-bold bg-[#335C4E] text-[#6EE7B7] px-1.5 py-0.5 rounded-[4px]">
                                                                 New

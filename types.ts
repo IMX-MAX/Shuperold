@@ -22,20 +22,20 @@ export interface Message {
   content: string;
   timestamp: Date;
   attachments?: Attachment[];
-  thoughtProcess?: string; // New field for thinking steps
+  thoughtProcess?: string;
 }
 
 export interface Session {
   id: string;
   title: string;
   subtitle: string;
-  timestamp: string; // e.g., "0s", "14h"
+  timestamp: string;
   category: 'TODAY' | 'YESTERDAY' | 'PREVIOUS';
   status: SessionStatus;
   labelIds: string[];
   isSelected?: boolean;
-  hasNewResponse?: boolean; // Notification badge
-  isFlagged?: boolean; // New flagged property
+  hasNewResponse?: boolean;
+  isFlagged?: boolean;
   mode?: SessionMode;
 }
 
@@ -59,6 +59,7 @@ export interface UserSettings {
   country: string;
   baseKnowledge: string;
   sendKey: 'Enter' | 'Ctrl+Enter';
+  onboardingComplete: boolean;
   apiKeys: {
       gemini: string;
       openRouter: string;
@@ -67,14 +68,6 @@ export interface UserSettings {
   };
 }
 
-export interface SidebarItem {
-  id: string;
-  label: string;
-  icon: React.ElementType;
-  count?: number;
-}
-
-// Current confirmed OpenRouter Free endpoints provided by user
 export const OPENROUTER_FREE_MODELS = [
     'stepfun/step-3.5-flash:free',
     'arcee-ai/trinity-large-preview:free',
@@ -92,6 +85,8 @@ export const OPENROUTER_FREE_MODELS = [
 ];
 
 export const GEMINI_MODELS = [
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite-preview-02-05',
     'gemini-3-flash-preview', 
     'gemini-3-pro-preview', 
     'gemini-2.0-flash-thinking-exp-01-21', 

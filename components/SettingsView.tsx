@@ -16,7 +16,8 @@ import {
   Briefcase,
   MessageSquare,
   Globe,
-  Keyboard
+  Keyboard,
+  AlertTriangle
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -24,6 +25,7 @@ interface SettingsViewProps {
   onUpdateSettings: (newSettings: UserSettings) => void;
   labels: Label[];
   onUpdateLabels: (labels: Label[]) => void;
+  onClearData: () => void;
 }
 
 const ApiKeyInput = ({ 
@@ -113,11 +115,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   settings, 
   onUpdateSettings,
   labels,
-  onUpdateLabels
+  onUpdateLabels,
+  onClearData
 }) => {
   const [activeTab, setActiveTab] = useState('general');
-  
-  // Label Management State
   const [newLabelName, setNewLabelName] = useState('');
   const [isAddingLabel, setIsAddingLabel] = useState(false);
   const predefinedColors = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'];
@@ -162,7 +163,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   return (
     <div className="flex-1 flex h-full bg-[var(--bg-primary)] text-[var(--text-main)] font-inter">
-      {/* Settings Sidebar */}
       <div className="w-64 border-r border-[var(--border)] pt-8 px-4 flex flex-col gap-1">
          <h2 className="text-sm font-semibold mb-4 px-2 text-[var(--text-dim)] uppercase tracking-wider">Settings</h2>
          {tabs.map(tab => (
@@ -181,7 +181,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
          ))}
       </div>
 
-      {/* Content Area */}
       <div className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto py-12 px-8">
               <h1 className="text-2xl font-semibold mb-8 capitalize">{activeTab}</h1>
@@ -214,31 +213,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                       className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[var(--text-main)] text-[var(--text-main)]"
                                   />
                               </div>
-
-                              <div className="grid grid-cols-2 gap-4">
-                                  <div className="space-y-1.5">
-                                      <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">City</label>
-                                      <div className="relative">
-                                          <input 
-                                              value={settings.city}
-                                              onChange={(e) => onUpdateSettings({...settings, city: e.target.value})}
-                                              placeholder="San Francisco"
-                                              className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-[var(--text-main)] text-[var(--text-main)]"
-                                          />
-                                          <Globe className="w-4 h-4 absolute left-3 top-3 text-[var(--text-dim)]" />
-                                      </div>
-                                  </div>
-                                  <div className="space-y-1.5">
-                                      <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Country</label>
-                                      <input 
-                                          value={settings.country}
-                                          onChange={(e) => onUpdateSettings({...settings, country: e.target.value})}
-                                          placeholder="USA"
-                                          className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[var(--text-main)] text-[var(--text-main)]"
-                                      />
-                                  </div>
-                              </div>
                           </div>
+                      </div>
+
+                      <div className="bg-red-950/20 border border-red-900/40 rounded-xl p-6">
+                          <div className="flex items-center gap-3 text-red-500 mb-2">
+                              <AlertTriangle className="w-5 h-5" />
+                              <h3 className="font-medium text-lg">Danger Zone</h3>
+                          </div>
+                          <p className="text-sm text-gray-400 mb-6">Clearing data will remove all sessions, local AI instructions, and API keys. This action cannot be undone.</p>
+                          <button 
+                            onClick={onClearData}
+                            className="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-bold transition-colors"
+                          >
+                              Clear All Data
+                          </button>
                       </div>
                   </div>
               )}
@@ -336,32 +325,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                               onToggle={toggleModel} 
                           />
                           
-                          {settings.apiKeys.openRouter && (
-                              <ModelList 
-                                  title="OpenRouter (Free)" 
-                                  models={OPENROUTER_FREE_MODELS} 
-                                  visibleModels={settings.visibleModels} 
-                                  onToggle={toggleModel} 
-                              />
-                          )}
+                          <ModelList 
+                              title="OpenRouter (Free)" 
+                              models={OPENROUTER_FREE_MODELS} 
+                              visibleModels={settings.visibleModels} 
+                              onToggle={toggleModel} 
+                          />
                           
-                          {settings.apiKeys.deepSeek && (
-                              <ModelList 
-                                  title="DeepSeek" 
-                                  models={DEEPSEEK_MODELS} 
-                                  visibleModels={settings.visibleModels} 
-                                  onToggle={toggleModel} 
-                              />
-                          )}
+                          <ModelList 
+                              title="DeepSeek" 
+                              models={DEEPSEEK_MODELS} 
+                              visibleModels={settings.visibleModels} 
+                              onToggle={toggleModel} 
+                          />
                           
-                          {settings.apiKeys.moonshot && (
-                              <ModelList 
-                                  title="Moonshot AI" 
-                                  models={MOONSHOT_MODELS} 
-                                  visibleModels={settings.visibleModels} 
-                                  onToggle={toggleModel} 
-                              />
-                          )}
+                          <ModelList 
+                              title="Moonshot AI" 
+                              models={MOONSHOT_MODELS} 
+                              visibleModels={settings.visibleModels} 
+                              onToggle={toggleModel} 
+                          />
                       </div>
                   </div>
               )}

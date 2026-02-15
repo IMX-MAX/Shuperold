@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Inbox } from 'lucide-react';
+import { Inbox, Layout, User, Rocket, ShieldAlert } from 'lucide-react';
 import { SidebarNavigation } from './components/SidebarNavigation';
 import { SessionList } from './components/SessionList';
 import { ChatInterface } from './components/ChatInterface';
@@ -42,6 +42,7 @@ const DEFAULT_SETTINGS: UserSettings = {
     country: 'USA',
     baseKnowledge: '',
     sendKey: 'Enter',
+    onboardingComplete: false,
     apiKeys: {
         gemini: '',
         openRouter: '',
@@ -64,7 +65,6 @@ Usage Rule:
 - Do not output the tags if you are just answering a question normally. Only use them if the user asks you to update the session.
 `;
 
-// Helper for local storage persistence using standard function syntax to avoid parser ambiguity
 function useStickyState<T>(defaultValue: T, key: string): [T, React.Dispatch<React.SetStateAction<T>>] {
   const [value, setValue] = useState<T>(() => {
     try {
@@ -89,6 +89,78 @@ function useStickyState<T>(defaultValue: T, key: string): [T, React.Dispatch<Rea
   return [value, setValue];
 }
 
+const OnboardingModal: React.FC<{ onComplete: (name: string, workspace: string) => void }> = ({ onComplete }) => {
+    const [name, setName] = useState('');
+    const [workspace, setWorkspace] = useState('');
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-6">
+            <div className="w-full max-w-md bg-[#171717] border border-[#333] rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-300">
+                <div className="mb-8 text-center">
+                    <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-600/20">
+                        <Rocket className="w-8 h-8 text-white" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white">Welcome to Shuper</h2>
+                    <p className="text-gray-400 text-sm mt-2">Let's set up your personal workspace.</p>
+                </div>
+
+                <div className="space-y-6">
+                    <div className="space-y-2">
+                        <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-2">
+                            <User className="w-3 h-3" /> Your Name
+                        </label>
+                        <input 
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            placeholder="e.g. Nathan"
+                            className="w-full bg-[#202020] border border-[#333] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 text-white transition-all"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-2">
+                            <Layout className="w-3 h-3" /> Workspace Name
+                        </label>
+                        <input 
+                            value={workspace}
+                            onChange={e => setWorkspace(e.target.value)}
+                            placeholder="e.g. My Creative Lab"
+                            className="w-full bg-[#202020] border border-[#333] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 text-white transition-all"
+                        />
+                    </div>
+                    <button 
+                        onClick={() => name && workspace && onComplete(name, workspace)}
+                        disabled={!name || !workspace}
+                        className="w-full py-4 bg-white text-black font-bold rounded-2xl hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+                    >
+                        Start Exploring
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const ModelErrorPopup: React.FC<{ error: string, onClose: () => void }> = ({ error, onClose }) => (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="w-full max-w-sm bg-[#1A1A1A] border border-red-900/50 rounded-2xl p-6 shadow-2xl animate-in fade-in duration-200">
+            <div className="flex items-center gap-3 text-red-500 mb-4">
+                <ShieldAlert className="w-6 h-6" />
+                <h3 className="font-bold">Provider Error</h3>
+            </div>
+            <p className="text-sm text-gray-300 mb-2 font-medium">This model appears to be down or returning an error:</p>
+            <div className="bg-black/40 rounded-lg p-3 text-xs font-mono text-red-400 mb-6 max-h-32 overflow-y-auto border border-red-900/20">
+                {error}
+            </div>
+            <button 
+                onClick={onClose}
+                className="w-full py-2.5 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-500 transition-colors"
+            >
+                Dismiss
+            </button>
+        </div>
+    </div>
+);
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'chat' | 'agents' | 'settings'>('chat');
   
@@ -107,15 +179,18 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isWhatsNewOpen, setIsWhatsNewOpen] = useState(false);
+  const [providerError, setProviderError] = useState<string | null>(null);
 
   // Initialize active session
   useEffect(() => {
-      if (sessions.length > 0 && !activeSessionId) {
-          setActiveSessionId(sessions[0].id);
-      } else if (sessions.length === 0 && currentView === 'chat') {
-          handleNewSession();
+      if (settings.onboardingComplete) {
+          if (sessions.length > 0 && !activeSessionId) {
+              setActiveSessionId(sessions[0].id);
+          } else if (sessions.length === 0 && currentView === 'chat') {
+              handleNewSession();
+          }
       }
-  }, []);
+  }, [settings.onboardingComplete]);
 
   // Theme Handling
   useEffect(() => {
@@ -218,9 +293,12 @@ const App: React.FC = () => {
           isFlagged: false,
           mode: 'explore'
       };
+      
+      const defaultModel = settings.visibleModels.length > 0 ? settings.visibleModels[0] : 'gemini-3-flash-preview';
+
       setSessions(prev => [newSession, ...(Array.isArray(prev) ? prev : [])]);
       setSessionMessages(prev => ({ ...prev, [newSession.id]: [] }));
-      setSessionModels(prev => ({ ...prev, [newSession.id]: settings.visibleModels[0] || 'gemini-3-flash-preview' }));
+      setSessionModels(prev => ({ ...prev, [newSession.id]: defaultModel }));
       handleSelectSession(newSession.id);
   };
 
@@ -335,7 +413,7 @@ const App: React.FC = () => {
             }
             if (m.attachments && m.attachments.length > 0) {
                 m.attachments.forEach(att => {
-                    const base64Data = att.data.split(',')[1] || att.data;
+                    const base64Data = att.data.includes('base64,') ? att.data.split('base64,')[1] : att.data;
                     parts.push({
                         inlineData: {
                             mimeType: att.type,
@@ -414,6 +492,12 @@ const App: React.FC = () => {
 
     } catch (e: any) {
         console.error("Failed to send message", e);
+        const errorText = e.message || "Unknown communication error";
+        
+        if (errorText.includes('404') || errorText.includes('failed to fetch') || errorText.includes('API Error')) {
+            setProviderError(errorText);
+        }
+
         const errorMessage = e.message?.includes('429') || e.message?.includes('quota') 
             ? "⚠️ API Quota Exceeded. Please add a valid API key in Settings." 
             : "Sorry, I encountered an error. Please check your network or API key.";
@@ -429,6 +513,13 @@ const App: React.FC = () => {
         });
     } finally {
         setSessionLoading(prev => ({ ...prev, [currentSessionId]: false }));
+    }
+  };
+
+  const handleClearData = () => {
+    if (confirm("Are you sure you want to clear all data? This will reset all sessions, settings, and API keys.")) {
+        localStorage.clear();
+        window.location.reload();
     }
   };
 
@@ -452,8 +543,22 @@ const App: React.FC = () => {
   };
   const renameSession = (id: string, t: string) => setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === id ? { ...s, title: t } : s) : prev);
 
+  const handleUpdateAgent = (updatedAgent: Agent) => {
+      setAgents(prev => prev.map(a => a.id === updatedAgent.id ? updatedAgent : a));
+  };
+
   return (
     <div className="flex h-screen w-full bg-[var(--bg-primary)] overflow-hidden text-sm font-inter text-[var(--text-main)] selection:bg-[var(--accent)] selection:text-white">
+      {!settings.onboardingComplete && (
+          <OnboardingModal onComplete={(name, workspace) => {
+              setSettings({ ...settings, userName: name, workspaceName: workspace, onboardingComplete: true });
+          }} />
+      )}
+
+      {providerError && (
+          <ModelErrorPopup error={providerError} onClose={() => setProviderError(null)} />
+      )}
+
       <SidebarNavigation 
         currentFilter={currentFilter} 
         onSetFilter={setCurrentFilter} 
@@ -507,6 +612,7 @@ const App: React.FC = () => {
                         onRenameSession={(title) => renameSession(activeSessionId!, title)}
                         onRegenerateTitle={handleRegenerateTitle}
                         onToggleFlag={() => toggleSessionFlag(activeSessionId!)}
+                        onChangeView={setCurrentView}
                         
                         visibleModels={settings.visibleModels}
                         agents={agents}
@@ -538,6 +644,7 @@ const App: React.FC = () => {
                     onUpdateSettings={handleUpdateSettings}
                     labels={availableLabels}
                     onUpdateLabels={setAvailableLabels}
+                    onClearData={handleClearData}
                   />
               </div>
           )}
@@ -548,6 +655,7 @@ const App: React.FC = () => {
                     agents={agents}
                     onCreateAgent={(a) => setAgents(prev => [...prev, a])}
                     onDeleteAgent={(id) => setAgents(prev => prev.filter(a => a.id !== id))}
+                    onUpdateAgent={handleUpdateAgent}
                   />
               </div>
           )}

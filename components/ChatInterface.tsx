@@ -1,5 +1,20 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { ChevronDown, Copy, Brain, ChevronRight, Terminal, Search, Globe, Eye, Loader2, AlertTriangle, Settings } from 'lucide-react';
+import { 
+  ChevronDown, 
+  Copy, 
+  Brain, 
+  ChevronRight, 
+  Terminal, 
+  Search, 
+  Globe, 
+  Eye, 
+  Loader2, 
+  AlertTriangle, 
+  Settings,
+  RefreshCcw,
+  Compass,
+  Trash2
+} from 'lucide-react';
 import Markdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import vscDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus';
@@ -22,6 +37,7 @@ interface ChatInterfaceProps {
   onDeleteSession: () => void;
   onRenameSession: (newTitle: string) => void;
   onUpdateMode: (mode: SessionMode) => void;
+  onChangeView: (view: 'chat' | 'agents' | 'settings') => void;
   
   // New props for InputArea state
   visibleModels: string[];
@@ -80,7 +96,6 @@ const ThinkingBlock = ({ thoughtProcess, isGenerating }: { thoughtProcess: strin
                             let Icon = Search;
                             let label = "Searching";
                             
-                            // Simple heuristic to change icons/labels based on text content
                             const lower = step.toLowerCase();
                             if (lower.includes('analyz') || lower.includes('review')) {
                                 Icon = Eye;
@@ -133,6 +148,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     onDeleteSession,
     onRenameSession,
     onUpdateMode,
+    onChangeView,
     visibleModels,
     agents,
     currentModel,
@@ -146,6 +162,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [titleMenuPosition, setTitleMenuPosition] = useState<{x: number, y: number} | null>(null);
+  const [chatContextMenu, setChatContextMenu] = useState<{x: number, y: number} | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   
@@ -160,7 +177,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [messages, isLoading, messages[messages.length - 1]?.thoughtProcess]);
 
   const handleTitleClick = (e: React.MouseEvent) => {
-      // If editing, don't open menu
       if (isEditingTitle) return;
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       setTitleMenuPosition({ x: rect.left, y: rect.bottom + 5 });
@@ -201,11 +217,63 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           onToggleFlag();
       }
   };
+
+  const handleChatContextMenu = (e: React.MouseEvent) => {
+      e.preventDefault();
+      setChatContextMenu({ x: e.clientX, y: e.clientY });
+  };
   
   const StatusIcon = STATUS_CONFIG[session.status].icon;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[var(--bg-tertiary)] relative font-inter transition-all duration-300 animate-in fade-in zoom-in-95">
+    <div 
+        className="flex-1 flex flex-col h-full bg-[var(--bg-tertiary)] relative font-inter transition-all duration-300 animate-in fade-in zoom-in-95"
+        onContextMenu={handleChatContextMenu}
+    >
+      {/* Chat Specific Context Menu */}
+      {chatContextMenu && (
+          <>
+            <div className="fixed inset-0 z-[100]" onClick={() => setChatContextMenu(null)} />
+            <div 
+                className="fixed z-[110] w-56 bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl py-1.5 text-[13px] animate-in fade-in zoom-in-95 duration-100 origin-top-left"
+                style={{ top: chatContextMenu.y, left: chatContextMenu.x }}
+            >
+                <div className="px-2 pb-1.5 mb-1 border-b border-[#2A2A2A]">
+                    <span className="px-2 text-[10px] font-bold text-[#525252] uppercase tracking-wider">Chat Settings</span>
+                </div>
+                <div 
+                    onClick={() => { onUpdateMode('explore'); setChatContextMenu(null); }}
+                    className={`flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] cursor-pointer rounded-lg mx-1 transition-colors ${session.mode === 'explore' ? 'text-white' : 'text-[#A1A1A1]'}`}
+                >
+                    <Compass className="w-4 h-4" />
+                    <span>Explore Mode</span>
+                </div>
+                <div 
+                    onClick={() => { onUpdateMode('execute'); setChatContextMenu(null); }}
+                    className={`flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] cursor-pointer rounded-lg mx-1 transition-colors ${session.mode === 'execute' ? 'text-white' : 'text-[#A1A1A1]'}`}
+                >
+                    <RefreshCcw className="w-4 h-4" />
+                    <span>Execute Mode</span>
+                </div>
+                <div className="h-[1px] bg-[#2A2A2A] my-1 mx-2" />
+                <div 
+                    onClick={() => { onChangeView('settings'); setChatContextMenu(null); }}
+                    className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1 transition-colors"
+                >
+                    <Settings className="w-4 h-4" />
+                    <span>System Settings</span>
+                </div>
+                <div 
+                    onClick={() => { onDeleteSession(); setChatContextMenu(null); }}
+                    className="flex items-center gap-3 px-3 py-2 hover:bg-red-500/10 text-red-400 cursor-pointer rounded-lg mx-1 transition-colors"
+                >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete Conversation</span>
+                </div>
+            </div>
+          </>
+      )}
+
       <div className="h-14 flex items-center justify-between px-6 border-b border-transparent z-10 absolute top-0 left-0 right-0 bg-[var(--bg-tertiary)]">
         {isEditingTitle ? (
             <input 
@@ -233,7 +301,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         )}
         
         <div className="flex items-center gap-3">
-             {/* Status Selector in Header */}
              <div className="relative">
                  <button 
                      onClick={() => setIsStatusMenuOpen(true)}
@@ -252,7 +319,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                  />
              </div>
              
-             {/* Label Selector in Header */}
              <div className="relative">
                  <button 
                      onClick={() => setIsLabelMenuOpen(true)}
@@ -327,7 +393,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                          </div>
                     ) : (
                         <div className="w-full text-[var(--text-main)] leading-7 text-[15px]">
-                            {/* Processing Indicator for initial wait (OpenRouter cold start etc) */}
                             {showProcessing && (
                                 <div className="flex items-center gap-2 text-[var(--text-dim)] text-sm animate-pulse ml-1 mb-2">
                                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -361,12 +426,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                         style={vscDarkPlus}
                                                         language={match[1]}
                                                         PreTag="div"
-                                                        customStyle={{
-                                                            margin: 0,
-                                                            borderRadius: '0.5rem',
-                                                            background: '#1e1e1e', // Match VS Code dark
-                                                            border: '1px solid var(--border)'
-                                                        }}
                                                         {...props}
                                                     >
                                                         {String(children).replace(/\n$/, '')}
@@ -384,7 +443,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 </div>
                             )}
                             
-                            {/* Actions - hidden while generating */}
                             {!isGenerating && msg.content && !isQuotaError && (
                                 <div className="flex items-center gap-4 mt-2">
                                      <button className="text-[var(--text-dim)] hover:text-[var(--text-muted)] transition-colors">
