@@ -7,30 +7,30 @@ import {
   Terminal, 
   Search, 
   Globe, 
-  Globe2,
+  Globe2, 
   Eye, 
   Loader2, 
   AlertTriangle, 
-  Settings,
-  RefreshCcw,
-  Compass,
-  Trash2,
-  Edit2,
-  Bot,
-  Menu,
-  ChevronLeft,
-  Check,
-  PlusCircle,
-  Key,
-  CircleDot,
-  ArrowDown,
-  Zap,
-  PanelRightOpen,
-  LayoutTemplate,
-  PanelRight,
-  Circle,
-  Tag,
-  Users
+  Settings, 
+  RefreshCcw, 
+  Compass, 
+  Trash2, 
+  Edit2, 
+  Bot, 
+  Menu, 
+  ChevronLeft, 
+  Check, 
+  PlusCircle, 
+  Key, 
+  CircleDot, 
+  ArrowDown, 
+  Zap, 
+  PanelRightOpen, 
+  LayoutTemplate, 
+  PanelRight, 
+  Circle, 
+  Tag, 
+  Users 
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -73,7 +73,11 @@ interface ChatInterfaceProps {
   onBackToList?: () => void;
   onOpenSidebar?: () => void;
   hasAnyKey?: boolean;
-  userSettings?: UserSettings;
+  userSettings: UserSettings;
+  draftValue: string;
+  onDraftChange: (val: string) => void;
+  isEditingTitle?: boolean;
+  setIsEditingTitle?: (val: boolean) => void;
 }
 
 const WaveLoader = () => (
@@ -138,7 +142,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     availableLabels, onUpdateLabels, onCreateLabel, onDeleteSession, onRenameSession,
     onUpdateMode, onUpdateCouncilModels, onChangeView, onNewSession, visibleModels, agents, currentModel, onSelectModel,
     sendKey, onRegenerateTitle, onToggleFlag, hasOpenRouterKey, hasDeepSeekKey, hasMoonshotKey,
-    onBackToList, onOpenSidebar, hasAnyKey, userSettings
+    onBackToList, onOpenSidebar, hasAnyKey, userSettings, draftValue, onDraftChange,
+    isEditingTitle = false, setIsEditingTitle = (_val: boolean) => {}
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const statusButtonRef = useRef<HTMLButtonElement>(null);
@@ -147,7 +152,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [titleMenuPosition, setTitleMenuPosition] = useState<{x: number, y: number} | null>(null);
   const [chatContextMenu, setChatContextMenu] = useState<{x: number, y: number} | null>(null);
   const [messageContextMenu, setMessageContextMenu] = useState<{x: number, y: number, messageId: string} | null>(null);
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editedTitle, setEditedTitle] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -176,7 +180,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.altKey && e.key.toLowerCase() === 'a') {
+    // Shift + Tab -> Toggle Mode
+    if (e.shiftKey && e.key === 'Tab') {
       e.preventDefault();
       onUpdateMode(session.mode === 'execute' ? 'explore' : 'execute');
     }
@@ -197,6 +202,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setTitleMenuPosition({ x: rect.left, y: rect.bottom + 5 });
   };
 
+  const handleTitleContextMenu = (e: React.MouseEvent) => {
+      e.preventDefault();
+      setChatContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
   const handleDoubleclickTitle = () => {
       setEditedTitle(session.title);
       setIsEditingTitle(true);
@@ -210,8 +220,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const handleChatContextMenu = (e: React.MouseEvent) => {
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
-      e.preventDefault();
-      setChatContextMenu({ x: e.clientX, y: e.clientY });
   };
 
   const handleMessageContextMenu = (e: React.MouseEvent, msgId: string) => {
@@ -296,6 +304,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const activeAgent = agents.find(a => a.id === currentModel);
 
+  // Sync editedTitle when opening editor
+  useEffect(() => {
+      if (isEditingTitle) {
+          setEditedTitle(session.title);
+      }
+  }, [isEditingTitle, session.title]);
+
   return (
     <div 
         className="flex-1 flex h-full bg-[var(--bg-tertiary)] relative font-inter overflow-hidden focus:outline-none"
@@ -312,7 +327,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               {isEditingTitle ? (
                   <input autoFocus className="bg-[var(--bg-elevated)] text-[var(--text-main)] border border-[var(--border)] rounded-lg px-3 py-1 text-sm focus:outline-none focus:border-[var(--text-main)] w-full" value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} onBlur={handleTitleSave} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleTitleSave(); } }} />
               ) : (
-                  <div onClick={handleTitleClick} onDoubleClick={handleDoubleclickTitle} className="flex items-center gap-2 text-[var(--text-main)] font-semibold text-sm cursor-pointer hover:bg-[var(--bg-elevated)] px-2.5 py-1.5 rounded-lg transition-all max-w-full select-none active:scale-[0.98]">
+                  <div 
+                    onClick={handleTitleClick} 
+                    onContextMenu={handleTitleContextMenu}
+                    onDoubleClick={handleDoubleclickTitle} 
+                    className="flex items-center gap-2 text-[var(--text-main)] font-semibold text-sm cursor-pointer hover:bg-[var(--bg-elevated)] px-2.5 py-1.5 rounded-lg transition-all max-w-full select-none active:scale-[0.98]"
+                  >
                     {activeAgent && (
                         activeAgent.icon ? (
                             <img src={activeAgent.icon} className="w-5 h-5 rounded-full object-cover border border-[var(--border)]" alt="" />
@@ -458,7 +478,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                               {copiedId === msg.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3 group-hover/btn:scale-110" />}
                                               <span className="text-[10px] font-bold uppercase tracking-widest opacity-80 group-hover/btn:opacity-100">{copiedId === msg.id ? 'Copied' : 'Copy'}</span>
                                           </button>
-                                          {session.mode === 'council' && (
+                                          {msg.model === 'council' && (
                                               <div className="flex items-center gap-2 text-[10px] text-[var(--text-dim)] font-bold uppercase tracking-widest bg-[var(--bg-elevated)] px-3 py-1 rounded-full border border-[var(--border)]">
                                                   <Users className="w-3 h-3" />
                                                   <span>Council Synthesis</span>
@@ -488,7 +508,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </>
         )}
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 z-40 flex justify-center">
+        <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 z-30 flex justify-center">
              <InputArea 
                   onSend={(text, atts, thinking, mode) => {
                       onSendMessage(text, atts, thinking, mode, editingMessageId || undefined);
@@ -518,6 +538,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   externalValue={editContent}
                   councilModels={session.councilModels}
                   onUpdateCouncilModels={onUpdateCouncilModels}
+                  draftValue={draftValue}
+                  onDraftChange={onDraftChange}
+                  isEditing={!!editingMessageId}
+                  onCancelEdit={() => {
+                      setEditingMessageId(null);
+                      setEditContent('');
+                  }}
              />
         </div>
 
@@ -525,10 +552,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <ContextMenu 
                 position={chatContextMenu} 
                 onClose={() => setChatContextMenu(null)}
-                onAction={(action) => {
+                onAction={(action, payload) => {
                     if (action === 'new_session') onNewSession();
                     if (action === 'rename') handleDoubleclickTitle();
                     if (action === 'delete') onDeleteSession();
+                    if (action === 'update_status') onUpdateStatus(payload);
+                    if (action === 'toggle_label') onUpdateLabels(payload);
+                    if (action === 'toggle_flag') onToggleFlag();
+                    if (action === 'toggle_archive') {
+                       const newStatus = session.status === 'archive' ? 'todo' : 'archive';
+                       onUpdateStatus(newStatus);
+                    }
+                    if (action === 'regenerate_title') onRegenerateTitle(session.id);
                     setChatContextMenu(null);
                 }}
                 currentStatus={session.status}

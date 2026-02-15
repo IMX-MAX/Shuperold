@@ -226,6 +226,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
     </div>
   );
 
+  const allModels = [...GEMINI_MODELS, ...OPENROUTER_FREE_MODELS, ...DEEPSEEK_MODELS, ...MOONSHOT_MODELS];
+
   return (
     <div className="flex-1 flex h-full bg-[var(--bg-primary)] text-[var(--text-main)] font-inter relative">
       {/* Sidebar Navigation */}
@@ -357,6 +359,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                               <ApiKeyInput label="Moonshot AI" value={settings.apiKeys.moonshot} onChange={(v) => updateApiKey('moonshot', v)} placeholder="sk-..." />
                           </div>
                       </div>
+
+                      <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-3xl p-6 md:p-8 space-y-6 shadow-sm island-card">
+                          <div className="space-y-1">
+                              <h3 className="font-bold text-lg text-[var(--text-main)]">Default Model</h3>
+                              <p className="text-xs text-[var(--text-dim)]">Used for background tasks (titles, labels) or when no model is selected.</p>
+                          </div>
+                          <div className="relative">
+                              <select 
+                                value={settings.defaultModel}
+                                onChange={(e) => onUpdateSettings({...settings, defaultModel: e.target.value})}
+                                className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--text-muted)] text-[var(--text-main)] appearance-none cursor-pointer"
+                              >
+                                {allModels.map(m => (
+                                    <option key={m} value={m}>{m}</option>
+                                ))}
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-dim)] pointer-events-none" />
+                          </div>
+                      </div>
+
                       <div className="space-y-4">
                           <h3 className="font-bold text-lg text-[var(--text-main)] px-2">Enabled Models</h3>
                           <div className="grid grid-cols-1 gap-3">
@@ -518,9 +540,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdateSe
                               <ShortcutItem keys={['Alt', 'N']} label="New Chat" />
                               <ShortcutItem keys={['Alt', 'S']} label="Search" />
                               <ShortcutItem keys={['Alt', 'P']} label="Settings" />
-                              <ShortcutItem keys={['Alt', 'B']} label="Toggle Sidebar" />
+                              <ShortcutItem keys={['Alt', '.']} label="Toggle Sidebar" />
                               <ShortcutItem keys={['Alt', 'Left']} label="Back History" />
                               <ShortcutItem keys={['Alt', 'Right']} label="Forward History" />
+                              <ShortcutItem keys={['Shift', 'Tab']} label="Toggle Mode" />
                               <ShortcutItem keys={['ArrowUp']} label="Edit Last Message" />
                           </div>
                        </div>

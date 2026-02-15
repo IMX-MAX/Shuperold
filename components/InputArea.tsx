@@ -4,19 +4,20 @@ import {
   ArrowUp, 
   X, 
   Zap, 
-  File as FileIcon,
   Loader2,
   RefreshCcw,
   ChevronDown,
   Trash2,
-  Compass,
-  Square,
-  AlertCircle,
-  AlertTriangle,
-  Circle,
-  Sparkles,
-  Users,
-  Check
+  Compass, 
+  Square, 
+  AlertCircle, 
+  AlertTriangle, 
+  Circle, 
+  Sparkles, 
+  Users, 
+  Check, 
+  BookOpen, 
+  PenLine 
 } from 'lucide-react';
 import { Attachment, Agent, Label, SessionStatus, SessionMode, GEMINI_MODELS, OPENROUTER_FREE_MODELS, DEEPSEEK_MODELS, MOONSHOT_MODELS } from '../types';
 import { ModelSelector } from './ModelSelector';
@@ -47,6 +48,10 @@ interface InputAreaProps {
   onUpArrow?: () => void;
   externalValue?: string;
   councilModels?: string[];
+  draftValue: string;
+  onDraftChange: (val: string) => void;
+  isEditing?: boolean;
+  onCancelEdit?: () => void;
 }
 
 export const InputArea: React.FC<InputAreaProps> = ({ 
@@ -72,9 +77,12 @@ export const InputArea: React.FC<InputAreaProps> = ({
     hasAnyKey = true,
     onUpArrow,
     externalValue,
-    councilModels = []
+    councilModels = [],
+    draftValue,
+    onDraftChange,
+    isEditing = false,
+    onCancelEdit
 }) => {
-  const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
@@ -86,9 +94,29 @@ export const InputArea: React.FC<InputAreaProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const statusBtnRef = useRef<HTMLButtonElement>(null);
 
+  // Global Auto-Focus
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+        if (
+            document.activeElement instanceof HTMLInputElement || 
+            document.activeElement instanceof HTMLTextAreaElement ||
+            e.metaKey || e.ctrlKey || e.altKey
+        ) {
+            return;
+        }
+        
+        // If it's a character key, number, or symbol
+        if (e.key.length === 1) {
+            textareaRef.current?.focus();
+        }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
   useEffect(() => {
     if (externalValue !== undefined && externalValue !== null && externalValue !== '') {
-      setInput(externalValue);
+      onDraftChange(externalValue);
       setTimeout(() => {
         if (textareaRef.current) {
           textareaRef.current.focus();
@@ -114,18 +142,23 @@ export const InputArea: React.FC<InputAreaProps> = ({
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       const scrollHeight = textareaRef.current.scrollHeight;
-      const finalHeight = input ? Math.min(scrollHeight, 200) : 28;
+      // min height logic adjusted to match initial render to prevent jump
+      const finalHeight = Math.max(34, Math.min(scrollHeight, 200)); 
       textareaRef.current.style.height = `${finalHeight}px`;
       textareaRef.current.style.overflowY = scrollHeight > 200 ? 'auto' : 'hidden';
     }
-  }, [input]);
+  }, [draftValue]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!hasAnyKey) return;
-    if (e.key === 'ArrowUp' && input.trim() === '' && onUpArrow) {
+    if (e.key === 'ArrowUp' && draftValue.trim() === '' && onUpArrow) {
       e.preventDefault();
       onUpArrow();
       return;
+    }
+    if (e.key === 'Escape' && isEditing && onCancelEdit) {
+        onCancelEdit();
+        return;
     }
     if (e.key === 'Enter' && !e.shiftKey) {
         if (sendKey === 'Enter' && !e.ctrlKey) {
@@ -144,12 +177,12 @@ export const InputArea: React.FC<InputAreaProps> = ({
           onStop?.();
           return;
       }
-      if (!input.trim() && attachments.length === 0) return;
-      onSend(input, attachments, currentMode === 'execute', currentMode);
-      setInput('');
+      if (!draftValue.trim() && attachments.length === 0) return;
+      onSend(draftValue, attachments, currentMode === 'execute', currentMode);
+      onDraftChange('');
       setAttachments([]);
       if (textareaRef.current) {
-          textareaRef.current.style.height = '28px';
+          textareaRef.current.style.height = '34px';
           textareaRef.current.style.overflowY = 'hidden';
       }
   };
@@ -195,15 +228,27 @@ export const InputArea: React.FC<InputAreaProps> = ({
   const getStatusBtnCoords = () => {
     if (statusBtnRef.current) {
         const rect = statusBtnRef.current.getBoundingClientRect();
-        return { bottom: (window.innerHeight - rect.top) + 8, right: (window.innerWidth - rect.right) };
+        return { bottom: (window.innerHeight - rect.top) + 8, left: rect.left };
     }
-    return { bottom: '100%', right: 0, marginBottom: '8px' };
+    return { bottom: '100%', left: 0, marginBottom: '8px' };
   };
 
   const ModeIcon = currentMode === 'explore' ? Compass : (currentMode === 'execute' ? RefreshCcw : Users);
 
   return (
-    <div id="tour-input-area" className="w-full max-w-3xl floating-input-shadow rounded-2xl bg-[var(--input-bg)] border border-[var(--border)] overflow-visible">
+    <div id="tour-input-area" className="w-full max-w-3xl floating-input-shadow rounded-2xl bg-[var(--input-bg)] border border-[var(--border)] overflow-visible relative">
+      {/* Editing Banner */}
+      {isEditing && (
+          <div className="absolute -top-8 left-0 right-0 flex items-center justify-center animate-in fade-in slide-in-from-bottom-2">
+              <div className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-full px-4 py-1 flex items-center gap-2 text-[11px] font-bold text-[var(--text-main)] shadow-lg">
+                  <PenLine className="w-3 h-3 text-[var(--accent)]" />
+                  <span>Editing Message</span>
+                  <div className="h-3 w-[1px] bg-[var(--border)] mx-1" />
+                  <button onClick={onCancelEdit} className="text-[var(--text-dim)] hover:text-red-400 transition-colors uppercase tracking-wider">Cancel</button>
+              </div>
+          </div>
+      )}
+
       <div className="p-2.5">
         <div className="flex items-center justify-between mb-1.5">
             <div className="relative">
@@ -235,23 +280,26 @@ export const InputArea: React.FC<InputAreaProps> = ({
                     </>
                 )}
             </div>
-            <button 
-                ref={statusBtnRef}
-                onClick={() => setIsStatusMenuOpen(true)}
-                className="p-1.5 rounded-full hover:bg-[var(--bg-elevated)] transition-all group active:scale-90"
-            >
-                <Circle className={`w-3.5 h-3.5 ${STATUS_CONFIG[currentStatus].color} opacity-60 group-hover:opacity-100 transition-opacity`} />
-            </button>
-            <StatusSelector isOpen={isStatusMenuOpen} onClose={() => setIsStatusMenuOpen(false)} currentStatus={currentStatus} onSelect={onUpdateStatus} position={getStatusBtnCoords()} />
+            
+            <div className="flex items-center gap-1.5">
+                <button 
+                    ref={statusBtnRef}
+                    onClick={() => setIsStatusMenuOpen(true)}
+                    className="p-1.5 rounded-full hover:bg-[var(--bg-elevated)] transition-all group active:scale-90"
+                >
+                    <Circle className={`w-3.5 h-3.5 ${STATUS_CONFIG[currentStatus].color} opacity-60 group-hover:opacity-100 transition-opacity`} />
+                </button>
+                <StatusSelector isOpen={isStatusMenuOpen} onClose={() => setIsStatusMenuOpen(false)} currentStatus={currentStatus} onSelect={onUpdateStatus} position={getStatusBtnCoords()} />
+            </div>
         </div>
 
         <textarea
           ref={textareaRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
+          value={draftValue}
+          onChange={(e) => onDraftChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={isLoading ? "Working..." : "What's on your mind?"}
-          className="w-full bg-transparent border-0 text-[var(--text-main)] placeholder-[var(--text-dim)] px-2.5 py-1 focus:ring-0 focus:outline-none resize-none min-h-[28px] max-h-[200px] custom-scrollbar text-[15px] font-medium leading-relaxed overflow-hidden"
+          className="w-full bg-transparent border-0 text-[var(--text-main)] placeholder-[var(--text-dim)] px-2.5 py-1 focus:ring-0 focus:outline-none resize-none min-h-[34px] max-h-[200px] custom-scrollbar text-[15px] font-medium leading-relaxed overflow-hidden transition-all duration-200 ease-out"
           rows={1}
         />
 
@@ -297,10 +345,10 @@ export const InputArea: React.FC<InputAreaProps> = ({
                 </div>
                 <button 
                     onClick={handleSend} 
-                    disabled={(!input.trim() && attachments.length === 0 && !isLoading) || !isCurrentModelValid}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${((!input.trim() && !isLoading) || !isCurrentModelValid) ? 'bg-[var(--bg-elevated)] text-[var(--text-dim)] opacity-50' : 'bg-[var(--accent)] text-[var(--bg-primary)] hover:scale-105 shadow-lg active:scale-95'}`}
+                    disabled={(!draftValue.trim() && attachments.length === 0 && !isLoading) || !isCurrentModelValid}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${((!draftValue.trim() && !isLoading) || !isCurrentModelValid) ? 'bg-[var(--bg-elevated)] text-[var(--text-dim)] opacity-50' : 'bg-[var(--accent)] text-[var(--bg-primary)] hover:scale-105 shadow-lg active:scale-95'}`}
                 >
-                    {isLoading ? <div className="w-2.5 h-2.5 bg-current rounded-[1px] animate-pulse" /> : <ArrowUp className="w-4 h-4" strokeWidth={2.5} />}
+                    {isLoading ? <div className="w-2.5 h-2.5 bg-current rounded-[1px] animate-pulse" /> : (isEditing ? <Check className="w-4 h-4" strokeWidth={3} /> : <ArrowUp className="w-4 h-4" strokeWidth={2.5} />)}
                 </button>
             </div>
         </div>

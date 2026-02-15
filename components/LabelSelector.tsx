@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { Check, Sparkles, Loader2 } from 'lucide-react';
 import { Label } from '../types';
 
@@ -48,13 +49,13 @@ export const LabelSelector: React.FC<LabelSelectorProps> = ({
   if (!isOpen) return null;
 
   const style: React.CSSProperties = position 
-    ? { top: position.top, left: position.left } 
-    : { bottom: '100%', right: 0, marginBottom: '8px', transformOrigin: 'bottom right' };
+    ? { top: position.top, left: position.left, position: 'fixed' } 
+    : { bottom: '100%', right: 0, marginBottom: '8px', transformOrigin: 'bottom right', position: 'absolute' };
 
-  return (
+  const content = (
     <div 
         ref={menuRef}
-        className="absolute z-[60] w-64 bg-[#1A1A1A] border border-[#333] rounded-2xl shadow-2xl py-2 animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
+        className="z-[99999] w-64 bg-[#1A1A1A] border border-[#333] rounded-2xl shadow-2xl py-2 animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
         style={style}
     >
       <div className="px-4 py-2.5 border-b border-[#262626] flex items-center justify-between">
@@ -100,4 +101,6 @@ export const LabelSelector: React.FC<LabelSelectorProps> = ({
       </div>
     </div>
   );
+
+  return ReactDOM.createPortal(content, document.body);
 };

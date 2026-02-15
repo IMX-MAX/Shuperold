@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 import { 
   CircleDashed, 
   Circle, 
@@ -14,7 +15,7 @@ interface StatusSelectorProps {
   onSelect: (status: SessionStatus) => void;
   onClose: () => void;
   isOpen: boolean;
-  position?: React.CSSProperties; // Pass fixed coordinates
+  position?: React.CSSProperties; 
 }
 
 export const STATUS_CONFIG: Record<SessionStatus, { label: string; icon: React.ElementType; color: string }> = {
@@ -31,10 +32,9 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({ currentStatus, o
 
   const statuses: SessionStatus[] = ['backlog', 'todo', 'needs_review', 'done', 'cancelled', 'archive'];
   
-  // Refined Fixed Style
   const fixedStyle: React.CSSProperties = {
     position: 'fixed',
-    zIndex: 9999,
+    zIndex: 99999, 
     width: '180px',
     backgroundColor: '#1F1F1F',
     border: '1px solid #333',
@@ -45,9 +45,9 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({ currentStatus, o
     ...position
   };
 
-  return (
+  const menuContent = (
     <>
-      <div className="fixed inset-0 z-[9998]" onClick={onClose} />
+      <div className="fixed inset-0 z-[99998]" onClick={onClose} />
       <div 
         className="animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
         style={fixedStyle}
@@ -58,6 +58,7 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({ currentStatus, o
                 placeholder="Filter statuses..." 
                 className="w-full bg-transparent text-[13px] text-[#E5E5E5] placeholder-[#525252] focus:outline-none px-1"
                 autoFocus
+                onClick={(e) => e.stopPropagation()}
             />
         </div>
         {statuses.map((status) => {
@@ -68,7 +69,8 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({ currentStatus, o
           return (
             <div
               key={status}
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 onSelect(status);
                 onClose();
               }}
@@ -86,4 +88,6 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({ currentStatus, o
       </div>
     </>
   );
+
+  return ReactDOM.createPortal(menuContent, document.body);
 };

@@ -21,6 +21,7 @@ interface SessionListProps {
   currentFilter: string;
   onOpenSidebar?: () => void;
   triggerSearch?: number;
+  onEditTitle?: (val: boolean) => void;
 }
 
 export const SessionList: React.FC<SessionListProps> = ({ 
@@ -39,7 +40,8 @@ export const SessionList: React.FC<SessionListProps> = ({
     onToggleFlag,
     currentFilter,
     onOpenSidebar,
-    triggerSearch
+    triggerSearch,
+    onEditTitle
 }) => {
   const [statusMenuOpenId, setStatusMenuOpenId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<React.CSSProperties | undefined>(undefined);
@@ -106,13 +108,14 @@ export const SessionList: React.FC<SessionListProps> = ({
         }
     };
 
-    const timer = setTimeout(updateIndicator, 50);
+    // Use requestAnimationFrame for smoother updates during layout changes
+    requestAnimationFrame(updateIndicator);
+    
     const observer = new ResizeObserver(updateIndicator);
     if (listRef.current) observer.observe(listRef.current);
 
     window.addEventListener('resize', updateIndicator);
     return () => {
-        clearTimeout(timer);
         observer.disconnect();
         window.removeEventListener('resize', updateIndicator);
     };
@@ -127,7 +130,6 @@ export const SessionList: React.FC<SessionListProps> = ({
   const handleStatusClick = (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    // Use fixed viewport coords
     setMenuPosition({ top: rect.bottom + 5, left: rect.left });
     setStatusMenuOpenId(sessionId);
   };
@@ -138,7 +140,20 @@ export const SessionList: React.FC<SessionListProps> = ({
       setContextMenu({ x: e.clientX, y: e.clientY, sessionId });
   };
 
+  const handleHeaderContextMenu = (e: React.MouseEvent) => {
+      e.preventDefault();
+      setContextMenu({ x: e.clientX, y: e.clientY, sessionId: 'header' });
+  };
+
   const handleContextAction = (action: string, payload: any, sessionId: string) => {
+      if (sessionId === 'header') {
+          if (action === 'new_session') {
+              onNewSession();
+          }
+          setContextMenu(null);
+          return;
+      }
+
       if (action === 'delete') {
           onDeleteSession(sessionId);
       } else if (action === 'toggle_archive') {
@@ -148,12 +163,17 @@ export const SessionList: React.FC<SessionListProps> = ({
               onUpdateSessionStatus(sessionId, newStatus);
           }
       } else if (action === 'rename') {
-          const session = sessions.find(s => s.id === sessionId);
-          if (session) {
-             const newTitle = window.prompt('Rename conversation:', session.title);
-             if (newTitle !== null && newTitle.trim() !== '') {
-                onRenameSession(sessionId, newTitle.trim());
-             }
+          // Check if this is the active session
+          if (sessionId === activeSessionId && onEditTitle) {
+              onEditTitle(true);
+          } else {
+              const session = sessions.find(s => s.id === sessionId);
+              if (session) {
+                 const newTitle = window.prompt('Rename conversation:', session.title);
+                 if (newTitle !== null && newTitle.trim() !== '') {
+                    onRenameSession(sessionId, newTitle.trim());
+                 }
+              }
           }
       } else if (action === 'regenerate_title') {
           onRegenerateTitle(sessionId);
@@ -169,10 +189,20 @@ export const SessionList: React.FC<SessionListProps> = ({
       setContextMenu(null);
   };
 
+  const getContextSession = (id: string) => {
+      if (id === 'header') return undefined;
+      return sessions.find(s => s.id === id);
+  };
+
+  const contextSession = contextMenu ? getContextSession(contextMenu.sessionId) : undefined;
+
   return (
     <div className="w-full h-full bg-[var(--bg-secondary)] flex flex-col relative z-10 transition-all duration-300">
-      <div className="h-14 flex items-center px-4 relative overflow-hidden shrink-0 border-b border-[var(--border)]">
-         <div className={`absolute inset-0 px-4 flex items-center transition-all duration-300 transform ${isSearchOpen ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
+      <div 
+        className="h-14 shrink-0 relative overflow-hidden" 
+        onContextMenu={handleHeaderContextMenu}
+      >
+         <div className={`absolute inset-0 px-4 flex items-center transition-all duration-300 ${isSearchOpen ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
              <div className="flex-1 flex items-center">
                  {onOpenSidebar && (
                      <button onClick={onOpenSidebar} className="md:hidden p-1 rounded hover:bg-[var(--bg-elevated)]">
@@ -180,16 +210,20 @@ export const SessionList: React.FC<SessionListProps> = ({
                      </button>
                  )}
              </div>
+             
              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                 <span className="font-semibold text-[var(--text-main)] text-sm tracking-tight pointer-events-auto select-none">
+                <span className="font-bold text-[var(--text-main)] text-[13px] tracking-wide pointer-events-auto select-none">
                     {filterTitle}
-                 </span>
+                </span>
              </div>
-             <div className="flex-1 flex justify-end">
+
+             <div className="flex-1 flex items-center justify-end">
                 <Search className="w-4 h-4 text-[var(--text-dim)] cursor-pointer hover:text-[var(--text-main)] transition-colors" onClick={() => setIsSearchOpen(true)} />
              </div>
          </div>
-         <div className={`absolute inset-0 px-4 flex items-center gap-2 transition-all duration-300 transform ${isSearchOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
+
+         {/* Search Input Overlay */}
+         <div className={`absolute inset-0 px-4 flex items-center gap-2 transition-all duration-300 bg-[var(--bg-secondary)] z-10 ${isSearchOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}>
              <Search className="w-4 h-4 text-[var(--text-main)]" />
              <input 
                  ref={searchInputRef}
@@ -206,7 +240,7 @@ export const SessionList: React.FC<SessionListProps> = ({
 
       <div className="flex-1 overflow-y-auto px-2 py-4 custom-scrollbar relative" ref={listRef}>
         <div 
-            className="absolute bg-[var(--accent)] z-20 active-indicator-bar pointer-events-none"
+            className="absolute bg-[var(--accent)] z-20 active-indicator-bar pointer-events-none transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]"
             style={indicatorStyle}
         />
         {displayedSessions.length > 0 && <div className="px-2 mb-2 text-[10px] font-bold text-[var(--text-dim)] tracking-widest uppercase">Latest</div>}
@@ -224,32 +258,39 @@ export const SessionList: React.FC<SessionListProps> = ({
                     const isActive = session.id === activeSessionId;
                     const isLoading = sessionLoading[session.id] || false;
                     const StatusIcon = STATUS_CONFIG[session.status]?.icon || Circle;
-                    const statusColor = isActive ? 'text-[var(--accent)]' : (STATUS_CONFIG[session.status]?.color || 'text-[var(--text-dim)]');
+                    const statusColor = isActive ? 'text-white' : (STATUS_CONFIG[session.status]?.color || 'text-[var(--text-dim)]');
 
                     return (
-                        <div key={session.id} data-session-id={session.id} className="relative flex items-stretch">
+                        <div 
+                            key={session.id} 
+                            data-session-id={session.id} 
+                            className="relative flex items-stretch"
+                            onContextMenu={(e) => handleContextMenu(e, session.id)}
+                        >
                             <div
                                 onClick={() => onSelectSession(session.id)}
-                                onContextMenu={(e) => handleContextMenu(e, session.id)}
                                 className={`session-item-box group flex-1 flex items-start gap-3 p-3 ml-2 rounded-xl cursor-pointer transition-all duration-200 ${isActive ? 'bg-[var(--bg-elevated)]' : 'hover:bg-[var(--bg-elevated)]/40'}`}
                             >
-                                <div className={`mt-1 flex-shrink-0 ${isLoading ? 'animate-pulse' : ''}`} onClick={(e) => handleStatusClick(e, session.id)}>
-                                    <StatusIcon className={`w-4 h-4 ${isActive ? 'opacity-100' : 'opacity-60'} ${statusColor} group-hover:opacity-100 transition-opacity`} strokeWidth={isActive ? 2.5 : 2} />
+                                <div 
+                                    className={`mt-1 flex-shrink-0 relative ${isLoading ? 'animate-pulse' : ''}`} 
+                                    onClick={(e) => handleStatusClick(e, session.id)}
+                                >
+                                    {isLoading && <div className="absolute inset-[-4px] bg-[var(--accent)]/20 rounded-full animate-ping opacity-75"></div>}
+                                    <StatusIcon className={`w-4 h-4 relative z-10 ${isActive ? 'opacity-100' : 'opacity-60'} ${statusColor} group-hover:opacity-100 transition-opacity`} strokeWidth={isActive ? 2.5 : 2} />
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between">
-                                        <div className={`text-[14px] font-semibold truncate pr-2 ${isActive ? 'text-[var(--text-main)]' : (session.status === 'done' ? 'text-[var(--text-dim)] line-through' : 'text-[var(--text-main)]')}`}>
+                                <div className="flex-1 min-w-0 pr-1 overflow-hidden">
+                                    <div className="flex items-center justify-between min-w-0">
+                                        <span className={`text-[14px] font-semibold truncate block max-w-[160px] ${isActive ? 'text-[var(--text-main)]' : (session.status === 'done' ? 'text-[var(--text-dim)] line-through' : 'text-[var(--text-main)]')}`}>
                                             {session.title}
-                                        </div>
-                                        <span className="text-[11px] text-[var(--text-dim)] font-medium flex-shrink-0">now</span>
+                                        </span>
                                     </div>
-                                    <div className="flex items-center justify-between mt-1">
-                                        <div className="flex items-center gap-2 overflow-hidden">
-                                            {session.hasNewResponse && (
-                                                <span className="text-[9px] font-black bg-[var(--accent)] text-[var(--bg-primary)] px-1.5 py-0.5 rounded tracking-tighter">New</span>
+                                    <div className="flex items-center justify-between mt-1 min-w-0">
+                                        <div className="flex items-center gap-2 overflow-hidden w-full">
+                                            {session.hasNewResponse && !isActive && (
+                                                <span className="flex-shrink-0 text-[10px] font-bold bg-[#5865F2] text-white px-2 py-0.5 rounded-md tracking-tight">New</span>
                                             )}
-                                            <span className="text-[9px] font-bold bg-[var(--bg-tertiary)] text-[var(--text-muted)] px-1.5 py-0.5 rounded tracking-tighter border border-[var(--border)] uppercase truncate">{session.mode || 'Explore'}</span>
-                                            <div className="flex items-center gap-1">
+                                            <span className="flex-shrink-0 text-[9px] font-bold bg-[var(--bg-tertiary)] text-[var(--text-muted)] px-1.5 py-0.5 rounded tracking-tighter border border-[var(--border)] uppercase truncate">{session.mode || 'Explore'}</span>
+                                            <div className="flex items-center gap-1 flex-shrink-0">
                                                 {session.labelIds?.map(lid => {
                                                     const label = availableLabels.find(l => l.id === lid);
                                                     return label ? (
@@ -257,7 +298,8 @@ export const SessionList: React.FC<SessionListProps> = ({
                                                     ) : null;
                                                 })}
                                             </div>
-                                            {session.isFlagged && <Flag className="w-3 h-3 text-red-500 fill-red-500 flex-shrink-0" />}
+                                            {session.isFlagged && <Flag className="w-3 h-3 text-red-500 fill-red-500 flex-shrink-0 ml-auto" />}
+                                            <span className="text-[10px] text-[var(--text-dim)] font-medium flex-shrink-0 ml-auto tabular-nums">now</span>
                                         </div>
                                     </div>
                                 </div>
@@ -282,10 +324,10 @@ export const SessionList: React.FC<SessionListProps> = ({
             position={{ x: contextMenu.x, y: contextMenu.y }}
             onClose={() => setContextMenu(null)}
             onAction={(action, payload) => handleContextAction(action, payload, contextMenu.sessionId)}
-            currentStatus={sessions.find(s => s.id === contextMenu.sessionId)?.status || 'todo'}
+            currentStatus={contextSession?.status || 'todo'}
             availableLabels={availableLabels}
-            currentLabelIds={sessions.find(s => s.id === contextMenu.sessionId)?.labelIds || []}
-            isFlagged={sessions.find(s => s.id === contextMenu.sessionId)?.isFlagged || false}
+            currentLabelIds={contextSession?.labelIds || []}
+            isFlagged={contextSession?.isFlagged || false}
           />
       )}
     </div>

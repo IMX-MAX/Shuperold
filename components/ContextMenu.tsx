@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { 
   Circle, 
   Tag, 
@@ -55,13 +56,15 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   const style: React.CSSProperties = {
     top: adjustedTop,
     left: adjustedLeft,
+    position: 'fixed',
+    zIndex: 99999,
   };
 
-  return (
+  const menuContent = (
     <div 
       ref={menuRef}
       style={style}
-      className="fixed z-[100] w-52 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl shadow-2xl py-1.5 text-[13px] text-[var(--text-muted)] animate-in fade-in zoom-in-95 duration-100 origin-top-left backdrop-blur-md"
+      className="w-52 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl shadow-2xl py-1.5 text-[13px] text-[var(--text-muted)] animate-in fade-in zoom-in-95 duration-100 origin-top-left backdrop-blur-md"
       onClick={(e) => e.stopPropagation()} 
     >
       <div className="px-1.5 space-y-0.5">
@@ -227,4 +230,6 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       </div>
     </div>
   );
+
+  return ReactDOM.createPortal(menuContent, document.body);
 };
