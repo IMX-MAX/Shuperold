@@ -62,6 +62,7 @@ export interface UserSettings {
   onboardingComplete: boolean;
   apiKeys: {
       openRouter: string;
+      openRouterAlt: string;
       deepSeek: string;
       moonshot: string;
   };

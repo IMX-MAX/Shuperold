@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Inbox, X, Flag, Tag, Archive, Menu } from 'lucide-react';
 import { Session, SessionStatus, Label } from '../types';

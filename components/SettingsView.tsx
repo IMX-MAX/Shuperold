@@ -18,7 +18,8 @@ import {
   Globe,
   Keyboard,
   AlertTriangle,
-  Wrench
+  Wrench,
+  Zap
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -34,18 +35,23 @@ const ApiKeyInput = ({
     label, 
     value, 
     onChange, 
-    placeholder 
+    placeholder,
+    description
 }: { 
     label: string, 
     value: string, 
     onChange: (val: string) => void,
-    placeholder: string
+    placeholder: string,
+    description?: string
 }) => {
     const [isVisible, setIsVisible] = useState(false);
 
     return (
         <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">{label}</label>
+            <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">{label}</label>
+                {description && <span className="text-[10px] text-blue-400 font-medium">{description}</span>}
+            </div>
             <div className="relative flex items-center">
                 <div className="absolute left-3 text-[var(--text-dim)]">
                     <Key className="w-4 h-4" />
@@ -298,19 +304,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               {activeTab === 'ai' && (
                   <div className="space-y-8">
                       <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-6 space-y-6">
-                          <div>
-                              <h3 className="font-medium text-lg mb-1">API Configuration</h3>
-                              <p className="text-sm text-[var(--text-dim)]">Manage your API keys to access different models.</p>
+                          <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="font-medium text-lg mb-1">AI Provider Keys</h3>
+                                <p className="text-sm text-[var(--text-dim)]">Manage your API keys for multi-provider access.</p>
+                            </div>
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold">
+                                <Zap className="w-3.5 h-3.5" />
+                                Failover Active
+                            </div>
                           </div>
                           
-                          <div className="space-y-4">
-                              {/* @google/genai guidelines: MUST NOT generate UI elements for managing the Google Gemini API key */}
-                              <ApiKeyInput 
-                                  label="OpenRouter API Key" 
-                                  value={settings.apiKeys.openRouter}
-                                  onChange={(v) => updateApiKey('openRouter', v)}
-                                  placeholder="sk-or-..."
-                              />
+                          <div className="space-y-6">
+                              <div className="p-4 rounded-xl bg-[var(--bg-elevated)]/30 border border-[var(--border)] space-y-4">
+                                <h4 className="text-xs font-bold text-[var(--text-muted)] uppercase flex items-center gap-2">
+                                    OpenRouter Configuration
+                                </h4>
+                                <ApiKeyInput 
+                                    label="Primary OpenRouter Key" 
+                                    value={settings.apiKeys.openRouter}
+                                    onChange={(v) => updateApiKey('openRouter', v)}
+                                    placeholder="sk-or-v1-..."
+                                />
+                                <ApiKeyInput 
+                                    label="Alternative OpenRouter Key" 
+                                    value={settings.apiKeys.openRouterAlt}
+                                    onChange={(v) => updateApiKey('openRouterAlt', v)}
+                                    placeholder="sk-or-v1-..."
+                                    description="Dual Wield: Used if primary hits quota (429)"
+                                />
+                              </div>
+
                               <ApiKeyInput 
                                   label="DeepSeek API Key" 
                                   value={settings.apiKeys.deepSeek}

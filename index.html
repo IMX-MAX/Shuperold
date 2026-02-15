@@ -9,7 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
       :root {
-        /* Default Dark Theme */
         --bg-primary: #121212;
         --bg-secondary: #171717;
         --bg-tertiary: #1C1C1C;
@@ -20,6 +19,7 @@
         --text-dim: #525252;
         --accent: #3B82F6;
         --accent-dim: rgba(59, 130, 246, 0.1);
+        --input-bg: #1A1A1A;
       }
 
       body.light-mode {
@@ -31,6 +31,7 @@
         --text-main: #171717;
         --text-muted: #525252;
         --text-dim: #A1A1A1;
+        --input-bg: #FFFFFF;
       }
 
       body {
@@ -40,7 +41,6 @@
         transition: background-color 0.3s, color 0.3s;
       }
       
-      /* Tint overlay for "Accent Tint" effect */
       body::before {
         content: "";
         position: fixed;
@@ -54,7 +54,6 @@
         z-index: 9999;
       }
 
-      /* Custom scrollbar */
       ::-webkit-scrollbar {
         width: 6px;
         height: 6px;
@@ -77,48 +76,49 @@
       .markdown-body code { background: var(--bg-elevated); padding: 0.2em 0.4em; border-radius: 0.25em; font-size: 0.9em; color: var(--accent); }
       .markdown-body pre code { background: transparent; padding: 0; color: inherit; }
 
-      /* Animation definitions */
       @keyframes messageIn {
         from { opacity: 0; transform: translateY(12px) scale(0.98); }
         to { opacity: 1; transform: translateY(0) scale(1); }
       }
-
-      @keyframes slideInLeft {
-        from { opacity: 0; transform: translateX(-10px); }
-        to { opacity: 1; transform: translateX(0); }
-      }
-
-      @keyframes slideInTop {
-        from { opacity: 0; transform: translateY(-8px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-
-      @keyframes zoomIn {
-        from { opacity: 0; transform: scale(0.95); }
-        to { opacity: 1; transform: scale(1); }
-      }
-
       @keyframes logoGlow {
         0%, 100% { filter: drop-shadow(0 0 5px var(--accent)); }
         50% { filter: drop-shadow(0 0 15px var(--accent)); }
       }
-
       .logo-glow {
         animation: logoGlow 2s infinite ease-in-out;
       }
 
+      /* Monotone 9 Squares Wave Animation */
+      .wave-container {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2px;
+        width: 14px;
+        height: 14px;
+      }
+      .wave-square {
+        width: 4px;
+        height: 4px;
+        background-color: var(--text-main);
+        border-radius: 1px;
+        animation: squareWave 1.2s infinite ease-in-out;
+      }
+      .wave-square:nth-child(1) { animation-delay: 0s; }
+      .wave-square:nth-child(2) { animation-delay: 0.1s; }
+      .wave-square:nth-child(3) { animation-delay: 0.2s; }
+      .wave-square:nth-child(4) { animation-delay: 0.1s; }
+      .wave-square:nth-child(5) { animation-delay: 0.2s; }
+      .wave-square:nth-child(6) { animation-delay: 0.3s; }
+      .wave-square:nth-child(7) { animation-delay: 0.2s; }
+      .wave-square:nth-child(8) { animation-delay: 0.3s; }
+      .wave-square:nth-child(9) { animation-delay: 0.4s; }
+
+      @keyframes squareWave {
+        0%, 100% { opacity: 0.2; transform: scale(0.8); }
+        50% { opacity: 0.8; transform: scale(1.1); }
+      }
+
       .animate-message { animation: messageIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-      .animate-in { animation-duration: 0.3s; animation-fill-mode: forwards; }
-      .fade-in { animation-name: fadeIn; }
-      .zoom-in-95 { animation-name: zoomIn; }
-      .slide-in-from-bottom-2 { animation-name: messageIn; }
-      .slide-in-from-left-2 { animation-name: slideInLeft; }
-      .slide-in-from-top-1 { animation-name: slideInTop; }
     </style>
   <script type="importmap">
 {

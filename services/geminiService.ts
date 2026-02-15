@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { Attachment, OPENROUTER_FREE_MODELS, SessionMode } from "../types";
+import { Attachment, OPENROUTER_FREE_MODELS, SessionMode, UserSettings } from "../types";
 
 /**
  * Generates a concise title for a session using the Gemini API.
@@ -49,7 +49,7 @@ export const sendMessageToGemini = async (
   attachments: Attachment[] = [],
   useThinking: boolean = false,
   onUpdate?: (content: string, thoughtProcess?: string) => void,
-  apiKeyFromSettings?: string,
+  apiKeys?: UserSettings['apiKeys'],
   modelName: string = 'gemini-3-flash-preview',
   mode: SessionMode = 'explore',
   signal?: AbortSignal
@@ -72,7 +72,7 @@ export const sendMessageToGemini = async (
           systemInstruction, 
           useThinking, 
           onUpdate, 
-          apiKeyFromSettings, 
+          apiKeys, 
           actualModel,
           signal
       );
@@ -149,15 +149,16 @@ const sendMessageToOpenAICompatible = async (
     systemInstruction: string | undefined,
     useThinking: boolean,
     onUpdate: ((content: string, thoughtProcess?: string) => void) | undefined,
-    apiKey: string | undefined, 
+    apiKeys: UserSettings['apiKeys'] | undefined, 
     modelName: string,
     signal?: AbortSignal
 ): Promise<{ text: string; thoughtProcess?: string }> => {
     
-    if (!apiKey) return { text: `API Key for ${modelName} missing. Please add it in Settings.` };
+    if (!apiKeys) return { text: `API configuration missing. Please check Settings.` };
 
     let fullUrl = '';
     const trimmedModel = modelName.trim();
+    const isOpenRouter = trimmedModel.includes(':free') || OPENROUTER_FREE_MODELS.includes(trimmedModel);
     
     if (trimmedModel.startsWith('deepseek-')) {
         fullUrl = 'https://api.deepseek.com/chat/completions';
@@ -179,12 +180,12 @@ const sendMessageToOpenAICompatible = async (
 
     messages.push({ role: 'user', content: message });
 
-    try {
-        const response = await fetch(fullUrl, {
+    const tryFetch = async (keyToUse: string): Promise<Response> => {
+        return await fetch(fullUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
+                'Authorization': `Bearer ${keyToUse}`,
                 'HTTP-Referer': window.location.origin,
                 'X-Title': 'Shuper Workspace'
             },
@@ -195,6 +196,27 @@ const sendMessageToOpenAICompatible = async (
             }),
             signal
         });
+    };
+
+    try {
+        let keyToTry = '';
+        if (trimmedModel.startsWith('deepseek-')) keyToTry = apiKeys.deepSeek;
+        else if (trimmedModel.startsWith('moonshot-')) keyToTry = apiKeys.moonshot;
+        else keyToTry = apiKeys.openRouter;
+
+        if (!keyToTry && isOpenRouter && apiKeys.openRouterAlt) {
+            keyToTry = apiKeys.openRouterAlt; // Use alt if primary missing
+        }
+
+        if (!keyToTry) throw new Error(`API Key for ${modelName} missing.`);
+
+        let response = await tryFetch(keyToTry);
+
+        // Failover logic for OpenRouter dual wielding
+        if (response.status === 429 && !trimmedModel.startsWith('deepseek-') && !trimmedModel.startsWith('moonshot-') && apiKeys.openRouterAlt && keyToTry !== apiKeys.openRouterAlt) {
+            console.log("Primary OpenRouter key quota hit, switching to alternative key...");
+            response = await tryFetch(apiKeys.openRouterAlt);
+        }
 
         if (!response.ok) {
             let errorMessage = `API Error: ${response.status}`;

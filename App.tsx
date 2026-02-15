@@ -45,6 +45,7 @@ const DEFAULT_SETTINGS: UserSettings = {
     onboardingComplete: false,
     apiKeys: {
         openRouter: '',
+        openRouterAlt: '',
         deepSeek: '',
         moonshot: ''
     }
@@ -57,9 +58,20 @@ You provide extremely precise, efficient, and sophisticated responses.
 
 STRICT CONVERSATION RULES:
 1. NO SIGN-OFFS. Do not say "Respectfully, Shuper AI", "Best regards", or any other closing statement.
-2. NO META-TALK. Do not output status updates or inner thoughts in brackets, such as "[Wait for further instruction]", "[Contentedly waiting]", or "[Tags will remain unused]".
+2. NO META-TALK. Do not output status updates or inner thoughts in brackets.
 3. BE DIRECT. Get straight to the helpful information.
 4. IDENTITY. If asked, you are Shuper AI.
+
+EXECUTE MODE (PLANNING):
+If the user is in Execute mode, you MUST start your response with a clear internal plan of action.
+Format each step of your plan on a new line starting with a hyphen (-).
+Ensure these steps describe your logic or intent (e.g., "- Acknowledge the user's greeting.", "- Confirm readiness to execute tasks.").
+Once your plan is complete, provide your final response on a new line.
+
+Example for a greeting:
+- Acknowledge the user's greeting.
+- Confirm readiness to execute tasks or provide advanced technical assistance.
+Hello! I'm Shuper AI, ready to assist you.
 
 SYSTEM CAPABILITIES (USE ONLY IF REQUESTED):
 - [[TITLE: New Title]] - To rename this session.
@@ -67,7 +79,7 @@ SYSTEM CAPABILITIES (USE ONLY IF REQUESTED):
 - [[LABEL: Label Name]] - To add a label to this session.
 
 LABEL RESTRICTION:
-IMPORTANT: You MUST NOT output the [[LABEL: ...]] tag for a NEW label that doesn't already exist unless the user has explicitly given you permission to create that specific new label in the current turn. If you think a new label is needed, suggest it and wait for user confirmation before using the tag.
+IMPORTANT: You MUST NOT output the [[LABEL: ...]] tag for a NEW label that doesn't already exist unless the user has explicitly given you permission.
 `;
 
 function useStickyState<T>(defaultValue: T, key: string): [T, React.Dispatch<React.SetStateAction<T>>] {
@@ -226,11 +238,14 @@ const App: React.FC = () => {
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ type: 'chat' | 'agent', id: string, title: string } | null>(null);
   const abortControllers = useRef<Record<string, AbortController>>({});
 
+  const hasAnyKey = useMemo(() => {
+    return !!(process.env.API_KEY || settings.apiKeys.openRouter || settings.apiKeys.openRouterAlt || settings.apiKeys.deepSeek || settings.apiKeys.moonshot);
+  }, [settings.apiKeys]);
+
   useEffect(() => {
       if (settings.onboardingComplete) {
           if (sessions.length > 0 && !activeSessionId) {
-              // On desktop we select first session, on mobile we keep list open
-              // setActiveSessionId(sessions[0].id);
+              // Auto-select is disabled for better mobile experience initially
           } else if (sessions.length === 0 && currentView === 'chat') {
               handleNewSession();
           }
@@ -283,10 +298,7 @@ const App: React.FC = () => {
   };
 
   const handleGlobalContextMenu = (e: React.MouseEvent) => {
-    // If we're right clicking on something that already has a context menu, don't show the global one
-    // We detect this by checking if default was prevented
     if (e.defaultPrevented) return;
-    
     e.preventDefault();
     setGlobalContextMenu({ x: e.clientX, y: e.clientY });
   };
@@ -294,7 +306,7 @@ const App: React.FC = () => {
   const handleUpdateSettings = useCallback((newSettings: UserSettings) => {
     const updatedVisibleModels = new Set(newSettings.visibleModels);
     
-    if (newSettings.apiKeys.openRouter && !settings.apiKeys.openRouter) {
+    if ((newSettings.apiKeys.openRouter || newSettings.apiKeys.openRouterAlt) && !(settings.apiKeys.openRouter || settings.apiKeys.openRouterAlt)) {
         OPENROUTER_FREE_MODELS.forEach(m => updatedVisibleModels.add(m));
     }
     if (newSettings.apiKeys.deepSeek && !settings.apiKeys.deepSeek) {
@@ -316,12 +328,17 @@ const App: React.FC = () => {
           return;
       }
       setActiveSessionId(id);
-      setIsMobileSessionListOpen(false); // On mobile, close list when selecting session
+      setIsMobileSessionListOpen(false);
       setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === id ? { ...s, hasNewResponse: false } : s) : prev);
       const newHistory = history.slice(0, historyIndex + 1);
       newHistory.push(id);
       setHistory(newHistory);
       setHistoryIndex(newHistory.length - 1);
+
+      if (!sessionModels[id] && hasAnyKey) {
+        const defaultModel = settings.visibleModels[0] || GEMINI_MODELS[0];
+        setSessionModels(prev => ({ ...prev, [id]: defaultModel }));
+      }
   };
 
   const handleBack = () => {
@@ -360,6 +377,12 @@ const App: React.FC = () => {
       
       setSessions(prev => [newSession, ...(Array.isArray(prev) ? prev : [])]);
       setSessionMessages(prev => ({ ...prev, [newSession.id]: [] }));
+      
+      if (hasAnyKey) {
+          const defaultModel = settings.visibleModels[0] || GEMINI_MODELS[0];
+          setSessionModels(prev => ({ ...prev, [newSession.id]: defaultModel }));
+      }
+
       handleSelectSession(newSession.id);
   };
 
@@ -443,10 +466,7 @@ const App: React.FC = () => {
     const currentSessionId = activeSessionId; 
 
     const modelId = sessionModels[currentSessionId];
-    if (!modelId) {
-        console.warn("Attempted to send message without selecting a model.");
-        return;
-    }
+    if (!modelId) return;
 
     if (activeSession?.title === 'New Chat' && text && !existingMsgId) {
         setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === currentSessionId ? { ...s, title: text.slice(0, 30) + (text.length > 30 ? '...' : '') } : s) : prev);
@@ -485,7 +505,7 @@ const App: React.FC = () => {
         aiMessageId = currentMsgs[userMsgIndex + 1].id;
         setSessionMessages(prev => ({
             ...prev,
-            [currentSessionId]: prev[currentSessionId].map(m => m.id === aiMessageId ? { ...m, content: '', thoughtProcess: (useThinking || mode === 'execute') ? "Initializing..." : undefined } : m)
+            [currentSessionId]: prev[currentSessionId].map(m => m.id === aiMessageId ? { ...m, content: '', thoughtProcess: undefined } : m)
         }));
     } else {
         const initialAiMessage: Message = {
@@ -493,7 +513,7 @@ const App: React.FC = () => {
             role: 'model',
             content: '',
             timestamp: new Date(),
-            thoughtProcess: (useThinking || mode === 'execute') ? "Initializing..." : undefined
+            thoughtProcess: undefined
         };
         if (existingMsgId && userMsgIndex !== -1) {
             setSessionMessages(prev => {
@@ -526,7 +546,6 @@ const App: React.FC = () => {
         });
 
         const agent = agents.find(a => a.id === modelId);
-        
         let systemInstruction = settings.baseKnowledge;
         let actualModel = modelId;
 
@@ -536,17 +555,6 @@ const App: React.FC = () => {
         }
 
         systemInstruction = `${systemInstruction}\n\n${AI_COMMANDS_INSTRUCTION}`;
-        
-        let apiKey = '';
-        if (actualModel.includes('gemini-') || actualModel.includes('flash')) {
-            apiKey = process.env.API_KEY || '';
-        } else if (actualModel.startsWith('deepseek-')) {
-            apiKey = settings.apiKeys.deepSeek;
-        } else if (actualModel.startsWith('moonshot-')) {
-            apiKey = settings.apiKeys.moonshot;
-        } else if (actualModel.includes('/') || actualModel.includes(':')) {
-            apiKey = settings.apiKeys.openRouter;
-        }
         
         const onStreamUpdate = (content: string, thoughtProcess?: string) => {
             setSessionMessages(prev => {
@@ -563,9 +571,9 @@ const App: React.FC = () => {
             historyData, 
             systemInstruction, 
             attachments, 
-            useThinking, 
+            mode === 'execute', 
             onStreamUpdate,
-            apiKey,
+            settings.apiKeys,
             actualModel,
             mode,
             controller.signal
@@ -588,16 +596,12 @@ const App: React.FC = () => {
     } catch (e: any) {
         if (e.name === 'AbortError') return;
         console.error("Failed to send message", e);
-        const errorText = e.message || "Unknown communication error";
-        if (errorText.includes('404') || errorText.includes('failed to fetch') || errorText.includes('API Error')) setProviderError(errorText);
-
-        const errorMessage = e.message?.includes('429') || e.message?.includes('quota') 
-            ? "⚠️ API Quota Exceeded. Please add a valid API key in Settings." 
-            : "Sorry, I encountered an error. Please check your network or API key.";
+        const errorText = e.message || "Unknown error";
+        if (errorText.includes('404') || errorText.includes('failed to fetch')) setProviderError(errorText);
 
         setSessionMessages(prev => {
             const msgs = prev[currentSessionId] || [];
-            return { ...prev, [currentSessionId]: msgs.map(m => m.id === aiMessageId ? { ...m, content: errorMessage } : m) };
+            return { ...prev, [currentSessionId]: msgs.map(m => m.id === aiMessageId ? { ...m, content: "Sorry, I encountered an error." } : m) };
         });
     } finally {
         setSessionLoading(prev => ({ ...prev, [currentSessionId]: false }));
@@ -606,14 +610,14 @@ const App: React.FC = () => {
   };
 
   const handleClearData = () => {
-    if (confirm("Are you sure you want to clear ALL data? This will reset everything, including API keys.")) {
+    if (confirm("Are you sure you want to clear ALL data?")) {
         localStorage.clear();
         window.location.reload();
     }
   };
 
   const handleRepairWorkspace = () => {
-    if (confirm("Repair Workspace will only clear your chats and labels. Your API keys and settings will remain safe. Continue?")) {
+    if (confirm("Repair Workspace will clear chats and labels. Continue?")) {
         setSessions([]);
         setSessionMessages({});
         setAvailableLabels(DEFAULT_LABELS);
@@ -661,7 +665,7 @@ const App: React.FC = () => {
 
   return (
     <div 
-        className="flex h-screen w-full bg-[var(--bg-primary)] overflow-hidden text-sm font-inter text-[var(--text-main)] selection:bg-[var(--accent)] selection:text-white relative"
+        className="flex h-screen w-full bg-[var(--bg-primary)] overflow-hidden text-sm font-inter text-[var(--text-main)] relative"
         onContextMenu={handleGlobalContextMenu}
     >
       {!settings.onboardingComplete && (
@@ -677,34 +681,12 @@ const App: React.FC = () => {
       {deleteConfirmation && (
           <DeleteConfirmationModal 
               title={`Delete ${deleteConfirmation.type === 'chat' ? 'Conversation' : 'Agent'}?`}
-              description={`Are you sure you want to delete "${deleteConfirmation.title}"? This action cannot be undone.`}
+              description={`Are you sure you want to delete "${deleteConfirmation.title}"?`}
               onConfirm={handleConfirmDelete}
               onCancel={() => setDeleteConfirmation(null)}
           />
       )}
 
-      {globalContextMenu && (
-          <>
-            <div className="fixed inset-0 z-[100]" onClick={() => setGlobalContextMenu(null)} />
-            <div 
-                className="fixed z-[110] w-52 bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl py-1.5 text-[13px] animate-in fade-in zoom-in-95 duration-100 origin-top-left"
-                style={{ top: globalContextMenu.y, left: globalContextMenu.x }}
-            >
-                <div 
-                    onClick={() => {
-                        handleNewSession();
-                        setGlobalContextMenu(null);
-                    }}
-                    className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-white cursor-pointer rounded-lg mx-1 transition-colors"
-                >
-                    <PlusCircle className="w-4 h-4" />
-                    <span>New Session</span>
-                </div>
-            </div>
-          </>
-      )}
-
-      {/* Sidebar Overlay for Mobile */}
       {isMobileSidebarOpen && (
           <div 
               className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 animate-in fade-in duration-300" 
@@ -805,11 +787,12 @@ const App: React.FC = () => {
                                 if(activeSessionId) setSessionModels(prev => ({...prev, [activeSessionId]: m}));
                             }}
                             sendKey={settings.sendKey}
-                            hasOpenRouterKey={!!settings.apiKeys.openRouter}
+                            hasOpenRouterKey={!!(settings.apiKeys.openRouter || settings.apiKeys.openRouterAlt)}
                             hasDeepSeekKey={!!settings.apiKeys.deepSeek}
                             hasMoonshotKey={!!settings.apiKeys.moonshot}
                             onBackToList={() => setIsMobileSessionListOpen(true)}
                             onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+                            hasAnyKey={hasAnyKey}
                         />
                     ) : (
                         <div className="flex-1 flex items-center justify-center text-[var(--text-dim)] bg-[var(--bg-tertiary)] flex-col gap-2 h-full">
@@ -822,10 +805,7 @@ const App: React.FC = () => {
                                 <Inbox className="w-6 h-6 text-[var(--text-muted)]" strokeWidth={1.5} />
                             </div>
                             <h3 className="text-lg font-medium text-[var(--text-main)]">Welcome to Shuper</h3>
-                            <p className="text-[var(--text-dim)] px-10 text-center">Select a session or create a new one to get started.</p>
-                            <button onClick={() => setIsMobileSessionListOpen(true)} className="md:hidden mt-4 px-6 py-2 bg-white text-black rounded-xl font-bold">
-                                View Sessions
-                            </button>
+                            <p className="text-[var(--text-dim)] px-10 text-center">Select a session to start.</p>
                         </div>
                     )}
                 </div>
@@ -834,11 +814,6 @@ const App: React.FC = () => {
 
           {currentView === 'settings' && (
               <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300">
-                  <div className="md:hidden absolute top-4 left-4 z-10">
-                      <button onClick={() => setIsMobileSidebarOpen(true)} className="p-2 bg-[var(--bg-elevated)] rounded-lg text-[var(--text-main)]">
-                          <Menu className="w-5 h-5" />
-                      </button>
-                  </div>
                   <SettingsView 
                     settings={settings} 
                     onUpdateSettings={handleUpdateSettings}
@@ -852,11 +827,6 @@ const App: React.FC = () => {
 
           {currentView === 'agents' && (
               <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300">
-                  <div className="md:hidden absolute top-4 left-4 z-10">
-                      <button onClick={() => setIsMobileSidebarOpen(true)} className="p-2 bg-[var(--bg-elevated)] rounded-lg text-[var(--text-main)]">
-                          <Menu className="w-5 h-5" />
-                      </button>
-                  </div>
                   <AgentsView 
                     agents={agents}
                     onCreateAgent={(a) => setAgents(prev => [...prev, a])}
