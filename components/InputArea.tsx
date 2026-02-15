@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Paperclip, 
@@ -13,7 +14,8 @@ import {
   Square,
   AlertCircle,
   AlertTriangle,
-  Circle
+  Circle,
+  Sparkles
 } from 'lucide-react';
 import { Attachment, Agent, Label, SessionStatus, SessionMode, GEMINI_MODELS, OPENROUTER_FREE_MODELS, DEEPSEEK_MODELS, MOONSHOT_MODELS } from '../types';
 import { ModelSelector } from './ModelSelector';
@@ -176,30 +178,39 @@ export const InputArea: React.FC<InputAreaProps> = ({
             <div className="relative">
                 <button 
                   onClick={() => setIsModeMenuOpen(!isModeMenuOpen)}
-                  className="flex items-center gap-1.5 bg-[var(--bg-elevated)]/50 hover:bg-[var(--bg-elevated)] px-2.5 py-1 rounded-lg border border-[var(--border)] text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-tight transition-all"
+                  className="flex items-center gap-2 bg-[#1A1A1A] hover:bg-[#222] px-3 py-1.5 rounded-xl border border-white/5 text-[11px] font-black text-[var(--text-muted)] uppercase tracking-widest transition-all active:scale-95 group"
                 >
-                  <Compass className="w-3 h-3" />
+                  {currentMode === 'explore' ? <Compass className="w-3 h-3 group-hover:rotate-12 transition-transform" /> : <RefreshCcw className="w-3 h-3 group-hover:rotate-180 transition-transform" />}
                   <span>{currentMode}</span>
-                  <ChevronDown className="w-2.5 h-2.5 opacity-40" />
+                  <ChevronDown className={`w-3 h-3 opacity-30 transition-transform duration-200 ${isModeMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {isModeMenuOpen && (
                     <>
                         <div className="fixed inset-0 z-40" onClick={() => setIsModeMenuOpen(false)} />
-                        <div className="absolute bottom-full left-0 mb-2 w-40 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl shadow-2xl py-1 z-50 overflow-hidden animate-in fade-in zoom-in-95 origin-bottom-left">
-                            {['explore', 'execute'].map((mode) => (
-                                <div key={mode} onClick={() => { onUpdateMode(mode as SessionMode); setIsModeMenuOpen(false); }} className={`flex items-center gap-2 px-3 py-2 cursor-pointer text-[12px] font-bold uppercase ${currentMode === mode ? 'bg-[var(--bg-elevated)] text-white' : 'hover:bg-[var(--bg-elevated)] text-[var(--text-muted)]'}`}>
-                                    <span>{mode}</span>
-                                </div>
-                            ))}
+                        <div className="absolute bottom-full left-0 mb-3 w-44 bg-[#141414] border border-white/5 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] py-2 z-50 overflow-hidden animate-in fade-in zoom-in-95 origin-bottom-left backdrop-blur-xl">
+                            <div 
+                              onClick={() => { onUpdateMode('explore'); setIsModeMenuOpen(false); }} 
+                              className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${currentMode === 'explore' ? 'bg-white/5 text-white' : 'text-[#555] hover:text-white hover:bg-white/5'}`}
+                            >
+                                <span className="text-[12px] font-black uppercase tracking-widest">Explore</span>
+                                {currentMode === 'explore' && <Compass className="w-3.5 h-3.5" />}
+                            </div>
+                            <div 
+                              onClick={() => { onUpdateMode('execute'); setIsModeMenuOpen(false); }} 
+                              className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${currentMode === 'execute' ? 'bg-white/5 text-white' : 'text-[#555] hover:text-white hover:bg-white/5'}`}
+                            >
+                                <span className="text-[12px] font-black uppercase tracking-widest">Execute</span>
+                                {currentMode === 'execute' && <RefreshCcw className="w-3.5 h-3.5" />}
+                            </div>
                         </div>
                     </>
                 )}
             </div>
             <button 
                 onClick={() => setIsStatusMenuOpen(true)}
-                className="p-1 rounded hover:bg-[var(--bg-elevated)] transition-all group"
+                className="p-1 rounded-full hover:bg-white/5 transition-all group active:scale-90"
             >
-                <StatusIcon className={`w-3.5 h-3.5 ${STATUS_CONFIG[currentStatus].color} opacity-60 group-hover:opacity-100 transition-opacity`} />
+                <StatusIcon className={`w-4 h-4 ${STATUS_CONFIG[currentStatus].color} opacity-60 group-hover:opacity-100 transition-opacity`} />
             </button>
             <StatusSelector isOpen={isStatusMenuOpen} onClose={() => setIsStatusMenuOpen(false)} currentStatus={currentStatus} onSelect={onUpdateStatus} position={{ bottom: '100%', right: 0, marginBottom: '8px' }} />
         </div>
@@ -208,10 +219,11 @@ export const InputArea: React.FC<InputAreaProps> = ({
             <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 px-1">
                 {attachments.map((att, i) => (
                     <div key={i} className="relative flex-shrink-0">
-                        <div className="w-10 h-10 rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--bg-elevated)] flex items-center justify-center">
-                            {att.type.startsWith('image/') ? <img src={att.data} alt={att.name} className="w-full h-full object-cover" /> : <FileIcon className="w-4 h-4 text-[var(--text-dim)]" />}
+                        <div className="w-12 h-12 rounded-xl border border-white/5 overflow-hidden bg-[#1A1A1A] flex items-center justify-center group/att">
+                            {att.type.startsWith('image/') ? <img src={att.data} alt={att.name} className="w-full h-full object-cover transition-transform duration-500 group-hover/att:scale-110" /> : <FileIcon className="w-5 h-5 text-[var(--text-dim)]" />}
                         </div>
-                        <button onClick={() => removeAttachment(i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-lg"><X className="w-2 h-2" /></button>
+                        {/* Use the correct index variable 'i' from map instead of 'index' */}
+                        <button onClick={() => removeAttachment(i)} className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-1 shadow-xl hover:bg-red-600 transition-colors"><X className="w-2.5 h-2.5" /></button>
                     </div>
                 ))}
             </div>
@@ -223,32 +235,32 @@ export const InputArea: React.FC<InputAreaProps> = ({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={isLoading ? "Generating..." : "Ask Shuper..."}
-          className="w-full bg-transparent border-0 text-[var(--text-main)] placeholder-[var(--text-dim)] px-2 py-1 focus:ring-0 focus:outline-none resize-none min-h-[40px] max-h-[200px] overflow-y-auto custom-scrollbar text-[15px] font-medium"
+          className="w-full bg-transparent border-0 text-[var(--text-main)] placeholder-[var(--text-dim)] px-2 py-1 focus:ring-0 focus:outline-none resize-none min-h-[40px] max-h-[200px] overflow-y-auto custom-scrollbar text-[16px] font-medium leading-relaxed"
           rows={1}
         />
 
         <div className="flex items-center justify-between mt-2 px-1">
             <div className="flex items-center gap-3">
                 <input type="file" multiple ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
-                <button onClick={() => fileInputRef.current?.click()} className="text-[var(--text-dim)] hover:text-white transition-all"><Paperclip className="w-5 h-5" /></button>
+                <button onClick={() => fileInputRef.current?.click()} className="p-1.5 rounded-xl text-[var(--text-dim)] hover:text-white hover:bg-white/5 transition-all"><Paperclip className="w-5 h-5" /></button>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
                 <div className="relative">
                     <button 
                         onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                        className="text-[11px] font-bold text-[var(--text-dim)] hover:text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-1 transition-all"
+                        className="text-[11px] font-black text-[var(--text-dim)] hover:text-[var(--text-muted)] uppercase tracking-[0.15em] flex items-center gap-2 transition-all px-2 py-1 rounded-lg hover:bg-white/5"
                     >
                         <span>{getModelNameDisplay()}</span>
-                        <ChevronDown className="w-3 h-3 opacity-50" />
+                        <ChevronDown className="w-3 h-3 opacity-30" />
                     </button>
                     <ModelSelector isOpen={isModelMenuOpen} onClose={() => setIsModelMenuOpen(false)} currentModel={currentModel} onSelect={onSelectModel} visibleModels={visibleModels} agents={agents} hasOpenRouterKey={hasOpenRouterKey} hasDeepSeekKey={hasDeepSeekKey} hasMoonshotKey={hasMoonshotKey} />
                 </div>
                 <button 
                     onClick={handleSend} 
                     disabled={(!input.trim() && attachments.length === 0 && !isLoading)}
-                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${(!input.trim() && !isLoading) ? 'bg-[#8E8E93]/20 text-[#8E8E93]/40' : 'bg-[#8E8E93] text-[#1E1E1E] hover:bg-white hover:scale-105'}`}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${(!input.trim() && !isLoading) ? 'bg-[#333]/50 text-[#555]' : 'bg-white text-black hover:scale-110 shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-90'}`}
                 >
-                    {isLoading ? <Square className="w-2.5 h-2.5 fill-current" /> : <ArrowUp className="w-4 h-4" strokeWidth={2.5} />}
+                    {isLoading ? <div className="w-2.5 h-2.5 bg-current rounded-[1px] animate-pulse" /> : <ArrowUp className="w-4.5 h-4.5" strokeWidth={3} />}
                 </button>
             </div>
         </div>

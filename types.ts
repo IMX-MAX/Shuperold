@@ -53,6 +53,7 @@ export interface Agent {
   baseModel: string;
   systemInstruction: string;
   description?: string;
+  icon?: string; // base64 string for custom agent icon
 }
 
 export interface UserSettings {

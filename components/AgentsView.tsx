@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Agent, GEMINI_MODELS, OPENROUTER_FREE_MODELS, DEEPSEEK_MODELS, MOONSHOT_MODELS } from '../types';
-import { Plus, Bot, ChevronRight, Save, Trash2, Edit2, Copy, ChevronDown, ArrowRight, History } from 'lucide-react';
+import { Plus, Bot, ChevronRight, Save, Trash2, Edit2, Copy, ChevronDown, ArrowRight, History, Camera, Image as ImageIcon, X } from 'lucide-react';
 
 interface AgentsViewProps {
   agents: Agent[];
@@ -19,11 +19,15 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
   const [name, setName] = useState('');
   const [baseModel, setBaseModel] = useState('gemini-3-flash-preview');
   const [instructions, setInstructions] = useState('');
+  const [icon, setIcon] = useState<string | undefined>(undefined);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetForm = () => {
     setName('');
     setInstructions('');
     setBaseModel('gemini-3-flash-preview');
+    setIcon(undefined);
     setIsCreating(false);
     setEditingAgent(null);
   };
@@ -36,14 +40,16 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
                   ...editingAgent,
                   name: finalName,
                   baseModel,
-                  systemInstruction: instructions.trim()
+                  systemInstruction: instructions.trim(),
+                  icon
               });
           } else {
               onCreateAgent({
                   id: Date.now().toString(),
                   name: finalName,
                   baseModel,
-                  systemInstruction: instructions.trim()
+                  systemInstruction: instructions.trim(),
+                  icon
               });
           }
           resetForm();
@@ -55,6 +61,7 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
       setName(agent.name);
       setBaseModel(agent.baseModel);
       setInstructions(agent.systemInstruction);
+      setIcon(agent.icon);
       setIsCreating(true);
       setAgentContextMenu(null);
   };
@@ -62,6 +69,18 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
   const handleAgentContextMenu = (e: React.MouseEvent, agentId: string) => {
       e.preventDefault();
       setAgentContextMenu({ x: e.clientX, y: e.clientY, agentId });
+  };
+
+  const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (re) => { 
+          if (re.target?.result) setIcon(re.target.result as string); 
+          e.target.value = '';
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // Simplified model list to match screenshot
@@ -78,7 +97,7 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
           <>
             <div className="fixed inset-0 z-[100]" onClick={() => setAgentContextMenu(null)} />
             <div 
-                className="fixed z-[110] w-48 bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl py-1.5 text-[13px] animate-in fade-in zoom-in-95 duration-100 origin-top-left"
+                className="fixed z-[110] w-48 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl shadow-2xl py-1.5 text-[13px] animate-in fade-in zoom-in-95 duration-100 origin-top-left"
                 style={{ top: agentContextMenu.y, left: agentContextMenu.x }}
             >
                 <div 
@@ -86,7 +105,7 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
                         const agent = agents.find(a => a.id === agentContextMenu.agentId);
                         if (agent) handleEdit(agent);
                     }}
-                    className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1 transition-colors"
+                    className="flex items-center gap-3 px-3 py-2 hover:bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer rounded-lg mx-1 transition-colors"
                 >
                     <Edit2 className="w-4 h-4" />
                     <span>Edit Agent</span>
@@ -103,12 +122,12 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
                         }
                         setAgentContextMenu(null);
                     }}
-                    className="flex items-center gap-3 px-3 py-2 hover:bg-[#2A2A2A] text-[#A1A1A1] hover:text-white cursor-pointer rounded-lg mx-1 transition-colors"
+                    className="flex items-center gap-3 px-3 py-2 hover:bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer rounded-lg mx-1 transition-colors"
                 >
                     <Copy className="w-4 h-4" />
                     <span>Duplicate</span>
                 </div>
-                <div className="h-[1px] bg-[#2A2A2A] my-1 mx-2" />
+                <div className="h-[1px] bg-[var(--border)] my-1 mx-2" />
                 <div 
                     onClick={() => {
                         onDeleteAgent(agentContextMenu.agentId);
@@ -144,7 +163,11 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
                   >
                       <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
-                              <Bot className="w-4 h-4 text-[var(--text-muted)]" />
+                              {agent.icon ? (
+                                <img src={agent.icon} className="w-4 h-4 rounded-full object-cover" alt="" />
+                              ) : (
+                                <Bot className="w-4 h-4 text-[var(--text-muted)]" />
+                              )}
                               <span className="font-medium text-[14px] truncate">{agent.name}</span>
                           </div>
                       </div>
@@ -168,21 +191,54 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
           {isCreating ? (
               <div className="max-w-[800px] mx-auto py-24 px-12 animate-in fade-in slide-in-from-bottom-2 duration-400">
                   <div className="mb-12">
-                      {/* Name Textbox - as requested */}
-                      <input 
-                         type="text"
-                         value={name}
-                         onChange={(e) => setName(e.target.value)}
-                         placeholder="New agent"
-                         className="text-4xl font-bold bg-transparent border-none outline-none text-[var(--text-main)] mb-10 tracking-tight w-full placeholder:opacity-30 focus:ring-0"
-                      />
+                      <div className="flex items-center gap-6 mb-10">
+                          {/* Agent Icon Uploader */}
+                          <div className="relative group/icon">
+                              <div 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-16 h-16 rounded-3xl bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center cursor-pointer overflow-hidden transition-all group-hover/icon:border-[var(--text-muted)]"
+                              >
+                                  {icon ? (
+                                    <img src={icon} className="w-full h-full object-cover" alt="" />
+                                  ) : (
+                                    <ImageIcon className="w-6 h-6 text-[var(--text-dim)]" />
+                                  )}
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/icon:opacity-100 flex items-center justify-center transition-opacity">
+                                      <Camera className="w-5 h-5 text-white" />
+                                  </div>
+                              </div>
+                              <input 
+                                ref={fileInputRef}
+                                type="file"
+                                className="hidden"
+                                accept="image/*"
+                                onChange={handleIconUpload}
+                              />
+                              {icon && (
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); setIcon(undefined); }}
+                                  className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg opacity-0 group-hover/icon:opacity-100 transition-opacity"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              )}
+                          </div>
+
+                          <input 
+                             type="text"
+                             value={name}
+                             onChange={(e) => setName(e.target.value)}
+                             placeholder="New agent"
+                             className="text-4xl font-bold bg-transparent border-none outline-none text-[var(--text-main)] tracking-tight w-full placeholder:opacity-30 focus:ring-0"
+                          />
+                      </div>
                       
                       <div className="space-y-1.5 mb-2">
                           <label className="text-[14px] font-medium text-[var(--text-muted)]">Description</label>
                       </div>
 
-                      {/* Main Input Card */}
-                      <div className="relative bg-[#1A1A1A] border border-[#2A2A2A] rounded-[24px] overflow-visible focus-within:border-[#3A3A3A] transition-colors">
+                      {/* Main Input Card - theme-aware background */}
+                      <div className="relative bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-[24px] overflow-visible focus-within:border-[var(--text-dim)]/50 transition-colors shadow-sm">
                           <textarea 
                              autoFocus
                              value={instructions}
@@ -192,14 +248,14 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
                                e.target.style.height = e.target.scrollHeight + 'px';
                              }}
                              placeholder="Add instructions about how this agent will run."
-                             className="w-full min-h-[140px] bg-transparent p-6 pb-20 text-[18px] text-[var(--text-main)] placeholder-[#444] focus:outline-none resize-none leading-relaxed"
+                             className="w-full min-h-[140px] bg-transparent p-6 pb-20 text-[18px] text-[var(--text-main)] placeholder-[var(--text-dim)]/60 focus:outline-none resize-none leading-relaxed"
                           />
                           
                           {/* Bottom Row Actions */}
                           <div className="absolute bottom-0 left-0 right-0 p-4 flex items-center justify-between">
                               <div className="flex items-center gap-1">
-                                  <button className="p-2 text-[#666] hover:text-white transition-colors">
-                                      <div className="w-8 h-8 rounded-full border border-[#333] flex items-center justify-center">
+                                  <button className="p-2 text-[var(--text-dim)] hover:text-[var(--text-main)] transition-colors">
+                                      <div className="w-8 h-8 rounded-full border border-[var(--border)] flex items-center justify-center bg-[var(--bg-secondary)]/50">
                                           <Plus className="w-4 h-4" />
                                       </div>
                                   </button>
@@ -209,30 +265,30 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
                                   <div className="relative">
                                       <button 
                                         onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                                        className="flex items-center gap-1.5 text-[15px] font-medium text-[#888] hover:text-white transition-colors py-2 px-3 rounded-xl"
+                                        className="flex items-center gap-1.5 text-[15px] font-medium text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors py-2 px-3 rounded-xl bg-[var(--bg-secondary)]/50"
                                       >
                                           <span className="truncate max-w-[120px]">{baseModel === 'gemini-3-flash-preview' ? 'Model' : baseModel}</span>
-                                          <ChevronDown className="w-4 h-4" />
+                                          <ChevronDown className="w-4 h-4 opacity-50" />
                                       </button>
                                       
                                       {isModelMenuOpen && (
-                                          <div className="absolute bottom-full right-0 mb-3 w-64 bg-[#141414] border border-[#2A2A2A] rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 overflow-hidden">
+                                          <div className="absolute bottom-full right-0 mb-3 w-64 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 overflow-hidden">
                                               {QUICK_MODELS.map(m => (
                                                   <div 
                                                     key={m} 
                                                     onClick={() => { setBaseModel(m); setIsModelMenuOpen(false); }}
-                                                    className="px-4 py-2.5 hover:bg-[#222] text-[13px] text-[#A1A1A1] hover:text-white cursor-pointer transition-colors"
+                                                    className="px-4 py-2.5 hover:bg-[var(--bg-secondary)] text-[13px] text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer transition-colors"
                                                   >
                                                       {m}
                                                   </div>
                                               ))}
-                                              <div className="h-[1px] bg-[#2A2A2A] my-1 mx-2" />
-                                              <div className="px-4 py-2 text-[10px] font-bold text-[#444] uppercase tracking-widest">More</div>
+                                              <div className="h-[1px] bg-[var(--border)] my-1 mx-2" />
+                                              <div className="px-4 py-2 text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-widest">More</div>
                                               {GEMINI_MODELS.filter(m => !QUICK_MODELS.includes(m)).map(m => (
                                                    <div 
                                                    key={m} 
                                                    onClick={() => { setBaseModel(m); setIsModelMenuOpen(false); }}
-                                                   className="px-4 py-2.5 hover:bg-[#222] text-[13px] text-[#A1A1A1] hover:text-white cursor-pointer transition-colors"
+                                                   className="px-4 py-2.5 hover:bg-[var(--bg-secondary)] text-[13px] text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer transition-colors"
                                                  >
                                                      {m}
                                                  </div>
@@ -241,12 +297,10 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
                                       )}
                                   </div>
 
-                                  {/* Mic button removed as per 'X' edit */}
-
                                   <button 
                                      onClick={handleCreateOrUpdate}
                                      disabled={!instructions.trim()}
-                                     className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${instructions.trim() ? 'bg-white text-black hover:scale-105 active:scale-95' : 'bg-[#222] text-[#444] cursor-not-allowed'}`}
+                                     className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${instructions.trim() ? 'bg-[var(--text-main)] text-[var(--bg-primary)] hover:scale-105 active:scale-95' : 'bg-[var(--bg-elevated)] text-[var(--text-dim)] cursor-not-allowed border border-[var(--border)]'}`}
                                   >
                                       <ArrowRight className="w-5 h-5" strokeWidth={2.5} />
                                   </button>
@@ -259,7 +313,7 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
                   <div className="mt-12">
                       <div 
                         onClick={() => setIsCreating(false)}
-                        className="inline-flex items-center gap-2 pb-1 cursor-pointer border-b-2 border-white/80 group"
+                        className="inline-flex items-center gap-2 pb-1 cursor-pointer border-b-2 border-[var(--text-main)] group"
                       >
                           <History className="w-4 h-4 text-[var(--text-main)]" />
                           <span className="text-[14px] font-semibold text-[var(--text-main)] group-hover:opacity-80 transition-opacity">My threads</span>
@@ -276,7 +330,7 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
                     <p className="text-sm text-[var(--text-dim)] leading-relaxed mb-8">Select an agent from the left to calibrate its parameters, or build a new specialized model.</p>
                     <button 
                         onClick={() => setIsCreating(true)}
-                        className="px-8 py-3.5 bg-white text-black font-black rounded-2xl hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-black/20"
+                        className="px-8 py-3.5 bg-[var(--text-main)] text-[var(--bg-primary)] font-black rounded-2xl hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-black/20"
                     >
                         New Agent
                     </button>

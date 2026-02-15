@@ -190,9 +190,13 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
               className="flex items-center justify-between px-3 py-2 text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer rounded-lg hover:bg-[var(--bg-elevated)] transition-all"
             >
                 <div className="flex items-center gap-2 overflow-hidden">
-                    <div className="w-5 h-5 rounded-full bg-neutral-500/20 text-neutral-500 flex items-center justify-center text-[10px] font-bold border border-neutral-500/20 flex-shrink-0">
-                        {workspaceName.charAt(0).toLowerCase()}
-                    </div>
+                    {workspaceIcon ? (
+                        <img src={workspaceIcon} className="w-5 h-5 rounded-full object-cover border border-neutral-500/20 flex-shrink-0" alt="" />
+                    ) : (
+                        <div className="w-5 h-5 rounded-full bg-neutral-500/20 text-neutral-500 flex items-center justify-center text-[10px] font-bold border border-neutral-500/20 flex-shrink-0">
+                            {workspaceName.charAt(0).toLowerCase()}
+                        </div>
+                    )}
                     <span className="truncate lowercase font-medium">{workspaceName}</span>
                     <ChevronDown className="w-3 h-3 opacity-50" />
                 </div>

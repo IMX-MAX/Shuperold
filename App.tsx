@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Inbox, Layout, User, Rocket, ShieldAlert, AlertTriangle, Trash2, Wrench, Menu, PlusCircle, Command, ShieldCheck, Loader2 } from 'lucide-react';
+import { Inbox, Layout, User, Rocket, ShieldAlert, AlertTriangle, Trash2, Wrench, Menu, PlusCircle, Command, ShieldCheck, Loader2, ChevronRight, X, Check } from 'lucide-react';
 import { SidebarNavigation } from './components/SidebarNavigation';
 import { SessionList } from './components/SessionList';
 import { ChatInterface } from './components/ChatInterface';
@@ -117,47 +117,76 @@ const OnboardingModal: React.FC<{ onComplete: (name: string, workspace: string) 
     const [workspace, setWorkspace] = useState('');
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-6">
-            <div className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border)] rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-500">
-                <div className="mb-10 text-center">
-                    <div className="w-20 h-20 bg-[var(--text-main)] rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
-                        <Command className="w-10 h-10 text-[var(--bg-primary)]" />
-                    </div>
-                    <h2 className="text-3xl font-black tracking-tighter text-white">Welcome</h2>
-                    <p className="text-[var(--text-dim)] font-bold text-[12px] uppercase tracking-widest mt-3">Let's set up your space</p>
-                </div>
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#0D0D0D] p-6 font-inter select-none overflow-hidden">
+            <button className="fixed top-6 right-6 p-2 text-white/20 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+            </button>
 
-                <div className="space-y-6">
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-[var(--text-dim)] uppercase tracking-widest flex items-center gap-2">
-                            <User className="w-3 h-3" /> What should I call you?
-                        </label>
+            <div className="w-full max-w-lg text-center mb-12">
+                <h2 className="text-[28px] font-semibold text-white mb-3 tracking-tight">Set up your Workspace</h2>
+                <p className="text-[15px] text-[#A1A1A1] leading-relaxed">
+                    Select how you'd like to power your AI agents.<br />
+                    You can add more connections later.
+                </p>
+            </div>
+
+            <div className="w-full max-w-lg space-y-4 mb-16">
+                {/* Name Input Card */}
+                <div 
+                    className={`relative group p-6 bg-[#1A1A1A]/30 border rounded-[28px] transition-all duration-300 flex items-center gap-5 cursor-text border-white/5 hover:border-white/10 ${name.trim() ? 'border-white/20 bg-[#1A1A1A]/50 ring-1 ring-white/5' : ''}`}
+                    onClick={() => document.getElementById('onboarding-name')?.focus()}
+                >
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all border ${name.trim() ? 'bg-white/10 text-white border-white/10' : 'bg-white/5 text-[#444] border-white/5'}`}>
+                        <User className="w-6 h-6" strokeWidth={2} />
+                    </div>
+                    <div className="flex-1 flex flex-col">
+                        <label className="text-[12px] font-bold text-white/40 uppercase tracking-[0.05em] mb-1">Your Name</label>
                         <input 
+                            id="onboarding-name"
                             value={name}
                             onChange={e => setName(e.target.value)}
-                            placeholder="Your Name"
-                            className="w-full bg-[var(--bg-elevated)]/50 border border-[var(--border)] rounded-2xl px-5 py-4 text-sm focus:outline-none focus:border-[var(--text-muted)] text-white transition-all placeholder-[var(--text-dim)]"
+                            placeholder="Type your name here..."
+                            className="bg-transparent border-none p-0 focus:ring-0 text-[16px] text-white placeholder-white/20 w-full outline-none font-medium transition-all"
                         />
                     </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-[var(--text-dim)] uppercase tracking-widest flex items-center gap-2">
-                            <Layout className="w-3 h-3" /> Workspace Name
-                        </label>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${name.trim() ? 'bg-white border-white text-black scale-110' : 'border-[#262626]'}`}>
+                        {name.trim() && <Check className="w-3.5 h-3.5" strokeWidth={4} />}
+                    </div>
+                </div>
+
+                {/* Workspace Input Card */}
+                <div 
+                    className={`relative group p-6 bg-[#1A1A1A]/30 border rounded-[28px] transition-all duration-300 flex items-center gap-5 cursor-text border-white/5 hover:border-white/10 ${workspace.trim() ? 'border-white/20 bg-[#1A1A1A]/50 ring-1 ring-white/5' : ''}`}
+                    onClick={() => document.getElementById('onboarding-workspace')?.focus()}
+                >
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all border ${workspace.trim() ? 'bg-white/10 text-white border-white/10' : 'bg-white/5 text-[#444] border-white/5'}`}>
+                        <Layout className="w-6 h-6" strokeWidth={2} />
+                    </div>
+                    <div className="flex-1 flex flex-col">
+                        <label className="text-[12px] font-bold text-white/40 uppercase tracking-[0.05em] mb-1">Workspace Name</label>
                         <input 
+                            id="onboarding-workspace"
                             value={workspace}
                             onChange={e => setWorkspace(e.target.value)}
-                            placeholder="Space Name"
-                            className="w-full bg-[var(--bg-elevated)]/50 border border-[var(--border)] rounded-2xl px-5 py-4 text-sm focus:outline-none focus:border-[var(--text-muted)] text-white transition-all placeholder-[var(--text-dim)]"
+                            placeholder="Name your workspace..."
+                            className="bg-transparent border-none p-0 focus:ring-0 text-[16px] text-white placeholder-white/20 w-full outline-none font-medium transition-all"
                         />
                     </div>
-                    <button 
-                        onClick={() => name && workspace && onComplete(name, workspace)}
-                        disabled={!name || !workspace}
-                        className="w-full py-5 bg-[var(--text-main)] text-[var(--bg-primary)] font-black rounded-2xl hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed mt-4 shadow-xl active:scale-[0.98]"
-                    >
-                        Start Chatting
-                    </button>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${workspace.trim() ? 'bg-white border-white text-black scale-110' : 'border-[#262626]'}`}>
+                        {workspace.trim() && <Check className="w-3.5 h-3.5" strokeWidth={4} />}
+                    </div>
                 </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="flex items-center justify-center w-full max-w-lg">
+                <button 
+                    onClick={() => name && workspace && onComplete(name, workspace)}
+                    disabled={!name || !workspace}
+                    className="w-full py-4 px-6 bg-[#1A1A1A] border border-white/10 rounded-2xl text-[14px] font-bold text-white hover:bg-[#222222] hover:border-white/20 transition-all active:scale-[0.98] disabled:opacity-10 disabled:cursor-not-allowed shadow-xl"
+                >
+                    Continue
+                </button>
             </div>
         </div>
     );
@@ -385,6 +414,8 @@ const App: React.FC = () => {
       }
 
       handleSelectSession(newSession.id);
+      // Ensure we switch to the chat view when a new session is created
+      setCurrentView('chat');
   };
 
   const handleRegenerateTitle = async (sessionId: string) => {
@@ -621,20 +652,16 @@ const App: React.FC = () => {
   };
 
   const handleClearData = () => {
-    if (confirm("Delete all your data forever?")) {
-        localStorage.clear();
-        window.location.reload();
-    }
+    localStorage.clear();
+    window.location.reload();
   };
 
   const handleRepairWorkspace = () => {
-    if (confirm("Reset everything except your settings?")) {
-        setSessions([]);
-        setSessionMessages({});
-        setAvailableLabels(DEFAULT_LABELS);
-        setActiveSessionId(null);
-        handleNewSession();
-    }
+    setSessions([]);
+    setSessionMessages({});
+    setAvailableLabels(DEFAULT_LABELS);
+    setActiveSessionId(null);
+    handleNewSession();
   };
 
   const updateSessionStatus = (id: string, s: SessionStatus) => setSessions(prev => Array.isArray(prev) ? prev.map(sess => sess.id === id ? { ...sess, status: s } : sess) : prev);
@@ -648,8 +675,19 @@ const App: React.FC = () => {
   const toggleSessionFlag = (id: string) => setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === id ? { ...s, isFlagged: !s.isFlagged } : s) : prev);
   
   const deleteSession = (id: string) => {
-      const session = sessions.find(s => s.id === id);
-      setDeleteConfirmation({ type: 'chat', id, title: session?.title || 'this chat' });
+      const messages = sessionMessages[id] || [];
+      if (messages.length === 0) {
+          // Immediately delete without confirmation if chat is empty
+          setSessions(prev => Array.isArray(prev) ? prev.filter(s => s.id !== id) : prev);
+          if (activeSessionId === id) {
+              const remaining = sessions.filter(s => s.id !== id);
+              if (remaining.length > 0) handleSelectSession(remaining[0].id);
+              else setActiveSessionId(null);
+          }
+      } else {
+          const session = sessions.find(s => s.id === id);
+          setDeleteConfirmation({ type: 'chat', id, title: session?.title || 'this chat' });
+      }
   };
 
   const handleConfirmDelete = () => {
@@ -695,7 +733,8 @@ const App: React.FC = () => {
                 setIsTourActive(false);
             }}
             onNewSession={() => {
-                handleNewSession();
+                // Ensure we don't duplicate sessions if one already exists
+                if (sessions.length === 0) handleNewSession();
                 setCurrentView('chat');
             }}
           />

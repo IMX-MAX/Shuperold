@@ -64,7 +64,7 @@ export const SessionList: React.FC<SessionListProps> = ({
     }
   }, [triggerSearch]);
 
-  // Refined Indicator calculation for perfect alignment
+  // Refined Indicator calculation for pixel-perfect flush alignment with top and bottom
   useEffect(() => {
     const updateIndicator = () => {
         if (activeSessionId && listRef.current) {
@@ -76,6 +76,7 @@ export const SessionList: React.FC<SessionListProps> = ({
                 const boxRect = innerBox.getBoundingClientRect();
                 
                 // Position relative to the container scroll
+                // We calculate from the top edge of the container to ensure it matches the transform origin
                 const relativeTop = boxRect.top - containerRect.top + listRef.current.scrollTop;
                 
                 setIndicatorStyle({
@@ -83,7 +84,9 @@ export const SessionList: React.FC<SessionListProps> = ({
                     transform: `translateY(${relativeTop}px)`,
                     height: `${boxRect.height}px`,
                     width: '3px',
-                    left: '2px', // Moved closer to ensure it touches the edge visually
+                    left: '0px', 
+                    top: '0px', // Explicitly set top to 0 to prevent padding-based offsets
+                    borderRadius: '0px 2px 2px 0px'
                 });
             }
         } else {
@@ -178,9 +181,9 @@ export const SessionList: React.FC<SessionListProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 py-4 custom-scrollbar relative" ref={listRef}>
-        {/* Animated Shared Indicator Bar */}
+        {/* Animated Shared Indicator Bar - Absolute top: 0 ensures translateY matches element Y exactly */}
         <div 
-            className="absolute bg-[var(--text-main)] rounded-full z-20 active-indicator-bar pointer-events-none"
+            className="absolute bg-[var(--text-main)] z-20 active-indicator-bar pointer-events-none"
             style={indicatorStyle}
         />
 

@@ -61,10 +61,14 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ onComplete, onSkip, on
 
   useEffect(() => {
     // Ensure the app is in a state where elements exist
+    // Only call onNewSession if we actually need a session for the tour step and don't have one
     if ((currentStep.id === 'mode' || currentStep.id === 'tasks') && onNewSession) {
-        onNewSession();
+        const hasSessions = document.querySelector('[data-session-id]');
+        if (!hasSessions) {
+            onNewSession();
+        }
     }
-  }, [currentStepIndex]);
+  }, [currentStepIndex, onNewSession, currentStep.id]);
 
   useEffect(() => {
     const updateHighlight = () => {
@@ -78,8 +82,6 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ onComplete, onSkip, on
       }
     };
 
-    // Use a small loop or mutation observer for better reliability if needed, 
-    // but a few timeouts usually handle the React render cycle transitions.
     const timer = setInterval(updateHighlight, 100);
     window.addEventListener('resize', updateHighlight);
     return () => {

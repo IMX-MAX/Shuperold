@@ -283,6 +283,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     ? session.labelIds.map(id => availableLabels.find(l => l.id === id)?.name).filter(Boolean).join(', ')
     : 'No tags';
 
+  const activeAgent = agents.find(a => a.id === currentModel);
+
   return (
     <div 
         className="flex-1 flex h-full bg-[var(--bg-tertiary)] relative font-inter overflow-hidden focus:outline-none"
@@ -299,7 +301,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               {isEditingTitle ? (
                   <input autoFocus className="bg-[var(--bg-elevated)] text-[var(--text-main)] border border-[var(--border)] rounded-lg px-3 py-1 text-sm focus:outline-none focus:border-[var(--text-main)] w-full" value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} onBlur={handleTitleSave} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleTitleSave(); } }} />
               ) : (
-                  <div onClick={handleTitleClick} onDoubleClick={handleDoubleclickTitle} className="flex items-center gap-1.5 text-[var(--text-main)] font-semibold text-sm cursor-pointer hover:bg-[var(--bg-elevated)] px-2.5 py-1.5 rounded-lg transition-all max-w-full select-none active:scale-[0.98]">
+                  <div onClick={handleTitleClick} onDoubleClick={handleDoubleclickTitle} className="flex items-center gap-2 text-[var(--text-main)] font-semibold text-sm cursor-pointer hover:bg-[var(--bg-elevated)] px-2.5 py-1.5 rounded-lg transition-all max-w-full select-none active:scale-[0.98]">
+                    {activeAgent && (
+                        activeAgent.icon ? (
+                            <img src={activeAgent.icon} className="w-5 h-5 rounded-full object-cover border border-[var(--border)]" alt="" />
+                        ) : (
+                            <Bot className="w-5 h-5 text-[var(--text-muted)]" />
+                        )
+                    )}
                     <span className="truncate lowercase">{session.title}</span>
                     <ChevronDown className="w-3.5 h-3.5 text-[var(--text-dim)]" />
                   </div>
