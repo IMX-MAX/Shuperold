@@ -63,6 +63,14 @@
         --border: rgba(251, 241, 199, 0.1); --text-main: #ebdbb2; --text-muted: #928374; --accent: #fabd2f; --input-bg: #1d2021;
         --selection-bg: rgba(250, 189, 47, 0.35);
       }
+      body[data-theme="Ghostty"]:not(.light-mode) {
+        --bg-primary: #000000; --bg-secondary: #151515; --bg-tertiary: #1a1a1a; --bg-elevated: #222222;
+        --border: #2a2a2a; --text-main: #ffffff; --text-muted: #888888; --accent: #ffffff; --input-bg: #000000;
+      }
+      body[data-theme="One Dark Pro"]:not(.light-mode) {
+        --bg-primary: #282c34; --bg-secondary: #21252b; --bg-tertiary: #333842; --bg-elevated: #3e4451;
+        --border: #181a1f; --text-main: #abb2bf; --text-muted: #5c6370; --accent: #61afef;
+      }
 
       /* THEME ENGINE: LIGHT VARIANTS */
       body.light-mode {
@@ -77,8 +85,8 @@
         --text-dim: #94a3b8;
         --accent: #0f172a;
         --input-bg: #ffffff;
-        --selection-bg: #FBCFE8; /* Soft Rose Quartz */
-        --selection-text: #9D174D; /* Deep Rose for Contrast */
+        --selection-bg: #FBCFE8;
+        --selection-text: #9D174D;
       }
 
       /* Specific Light-Themed Tints */
@@ -123,7 +131,6 @@
         border-radius: 1.5px;
         animation: wave-pulse 1.4s infinite ease-in-out;
       }
-      /* Diagonal delay pattern */
       .wave-square:nth-child(1) { animation-delay: 0.0s; }
       .wave-square:nth-child(2), .wave-square:nth-child(4) { animation-delay: 0.15s; }
       .wave-square:nth-child(3), .wave-square:nth-child(5), .wave-square:nth-child(7) { animation-delay: 0.3s; }
@@ -173,6 +180,12 @@
       .markdown-body pre { margin-bottom: 1em; border-radius: 0.75rem; overflow: hidden; }
       .markdown-body code { background: var(--bg-elevated); padding: 0.2em 0.4em; border-radius: 0.25em; font-size: 0.9em; font-weight: 600; }
       .markdown-body pre code { background: transparent; padding: 0; font-weight: 400; }
+      
+      /* Table Support */
+      .markdown-body table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 13px; }
+      .markdown-body th, .markdown-body td { border: 1px solid var(--border-bold); padding: 8px 12px; text-align: left; }
+      .markdown-body th { background: var(--bg-elevated); font-weight: 700; color: var(--text-main); }
+      .markdown-body tr:nth-child(even) { background: var(--bg-primary); }
     </style>
   <script type="importmap">
 {
@@ -184,6 +197,7 @@
     "lucide-react": "https://esm.sh/lucide-react@0.460.0",
     "@google/genai": "https://esm.sh/@google/genai@1.41.0",
     "react-markdown": "https://esm.sh/react-markdown@9.0.1",
+    "remark-gfm": "https://esm.sh/remark-gfm@4.0.0",
     "react-syntax-highlighter": "https://esm.sh/react-syntax-highlighter@15.5.0",
     "react-syntax-highlighter/": "https://esm.sh/react-syntax-highlighter@15.5.0/"
   }

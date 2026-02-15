@@ -1,8 +1,7 @@
-
 import React from 'react';
 
 export type SessionStatus = 'backlog' | 'todo' | 'needs_review' | 'done' | 'cancelled' | 'archive';
-export type SessionMode = 'explore' | 'execute';
+export type SessionMode = 'explore' | 'execute' | 'council';
 export type ColorTheme = 'Default' | 'Catppuccin' | 'Dracula' | 'Ghostty' | 'GitHub' | 'Gruvbox' | 'Haze' | 'Tokyo Night' | 'Solarized' | 'Rose Pine' | 'AAITN' | 'One Dark Pro' | 'Pierre' | 'Nord';
 export type FontFamily = 'Inter' | 'System';
 
@@ -48,6 +47,7 @@ export interface Session {
   hasNewResponse?: boolean;
   isFlagged?: boolean;
   mode?: SessionMode;
+  councilModels?: string[];
 }
 
 export interface Agent {

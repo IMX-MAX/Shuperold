@@ -318,6 +318,15 @@ const App: React.FC = () => {
         return;
       }
 
+      // Ctrl + . toggle both panels
+      if (e.ctrlKey && e.key === '.') {
+        e.preventDefault();
+        const shouldBeVisible = !isSidebarVisible || !isSubSidebarVisible;
+        setIsSidebarVisible(shouldBeVisible);
+        setIsSubSidebarVisible(shouldBeVisible);
+        return;
+      }
+
       if (e.altKey) {
         switch (e.key.toLowerCase()) {
           case 'n':
@@ -337,12 +346,6 @@ const App: React.FC = () => {
           case 'b':
             e.preventDefault();
             setIsSidebarVisible(prev => !prev);
-            break;
-          case '.':
-            e.preventDefault();
-            const shouldBeVisible = !isSidebarVisible || !isSubSidebarVisible;
-            setIsSidebarVisible(!shouldBeVisible);
-            setIsSubSidebarVisible(!shouldBeVisible);
             break;
           case 'arrowleft':
             e.preventDefault();
@@ -401,6 +404,10 @@ const App: React.FC = () => {
   const filteredSessions = useMemo(() => {
     const sessionArr = Array.isArray(sessions) ? sessions : [];
     
+    if (currentFilter === 'archived') {
+        return sessionArr.filter(s => s.status === 'archive');
+    }
+
     if (currentFilter.startsWith('status:')) {
         const status = currentFilter.split(':')[1] as SessionStatus;
         return sessionArr.filter(s => s.status === status);
@@ -411,7 +418,6 @@ const App: React.FC = () => {
     }
     switch (currentFilter) {
         case 'flagged': return sessionArr.filter(s => s.isFlagged);
-        case 'archived': return sessionArr.filter(s => s.status === 'archive');
         case 'all': default: return sessionArr.filter(s => s.status !== 'archive');
     }
   }, [sessions, currentFilter]);
@@ -468,7 +474,8 @@ const App: React.FC = () => {
           tasks: [],
           hasNewResponse: false,
           isFlagged: false,
-          mode: 'explore'
+          mode: 'explore',
+          councilModels: GEMINI_MODELS.slice(0, 3)
       };
       
       setSessions(prev => [newSession, ...(Array.isArray(prev) ? prev : [])]);
@@ -646,18 +653,40 @@ const App: React.FC = () => {
             });
         };
 
-        const response = await sendMessageToGemini(
-            text, 
-            historyData, 
-            systemInstruction, 
-            attachments, 
-            mode === 'execute', 
-            onStreamUpdate,
-            settings.apiKeys,
-            actualModel,
-            mode,
-            controller.signal
-        );
+        let response;
+        if (mode === 'council' && activeSession?.councilModels) {
+            setSessionMessages(prev => ({
+                ...prev,
+                [currentSessionId]: (prev[currentSessionId] || []).map(m => m.id === aiMessageId ? { ...m, thoughtProcess: 'Convening the Council: Models are deliberating in parallel...' } : m)
+            }));
+
+            // Fetch parallel responses
+            const modelResponses = await Promise.all(activeSession.councilModels.map(async (mId) => {
+                const res = await sendMessageToGemini(text, historyData, systemInstruction, attachments, false, undefined, settings.apiKeys, mId, 'explore', controller.signal);
+                return `Response from [${mId}]:\n${res.text}`;
+            }));
+
+            const synthesisPrompt = `You are the Council Synthesizer. Review the following 3 responses to the user query: "${text}". 
+            Resolve conflicts where possible, highlight key differences, and present a final unified answer. 
+            MANDATORY: Include a comparison table showing where the models agree and disagree.
+            
+            ${modelResponses.join('\n\n---\n\n')}`;
+
+            response = await sendMessageToGemini(synthesisPrompt, historyData, systemInstruction, [], false, onStreamUpdate, settings.apiKeys, 'gemini-3-flash-preview', 'explore', controller.signal);
+        } else {
+            response = await sendMessageToGemini(
+                text, 
+                historyData, 
+                systemInstruction, 
+                attachments, 
+                mode === 'execute', 
+                onStreamUpdate,
+                settings.apiKeys,
+                actualModel,
+                mode,
+                controller.signal
+            );
+        }
         
         const cleanText = executeAICommands(response.text, currentSessionId);
         
@@ -677,8 +706,6 @@ const App: React.FC = () => {
         if (e.name === 'AbortError') return;
         console.error("Failed to send message", e);
         const errorText = e.message || "Unknown error";
-        if (errorText.includes('404') || errorText.includes('failed to fetch')) setProviderError(errorText);
-
         setSessionMessages(prev => {
             const msgs = prev[currentSessionId] || [];
             return { ...prev, [currentSessionId]: msgs.map(m => m.id === aiMessageId ? { ...m, content: `Error: ${errorText}` } : m) };
@@ -710,6 +737,7 @@ const App: React.FC = () => {
       return { ...s, labelIds: hasLabel ? s.labelIds.filter(x => x !== lid) : [...s.labelIds, lid] };
   }) : prev);
   const toggleSessionFlag = (id: string) => setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === id ? { ...s, isFlagged: !s.isFlagged } : s) : prev);
+  const updateCouncilModels = (id: string, models: string[]) => setSessions(prev => Array.isArray(prev) ? prev.map(s => s.id === id ? { ...s, councilModels: models } : s) : prev);
   
   const deleteSession = (id: string) => {
       const messages = sessionMessages[id] || [];
@@ -788,7 +816,6 @@ const App: React.FC = () => {
           <div className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 animate-in fade-in duration-300" onClick={() => setIsMobileSidebarOpen(false)} />
       )}
 
-      {/* FIXED SIDEBAR: Smooth sliding width animation */}
       <div className={`
           fixed md:relative inset-y-0 left-0 z-50 
           transform transition-all duration-500 ease-in-out 
@@ -829,7 +856,6 @@ const App: React.FC = () => {
 
       {isWhatsNewOpen && <WhatsNewModal isOpen={isWhatsNewOpen} onClose={() => setIsWhatsNewOpen(false)} />}
 
-      {/* Content wrapper */}
       <div className="flex-1 flex overflow-hidden relative p-0 md:p-2 md:pl-0 md:gap-2 transition-all duration-500">
           {currentView === 'chat' && (
               <div className="absolute inset-0 flex animate-in fade-in zoom-in-95 duration-300 gap-0 md:gap-2">
@@ -886,6 +912,7 @@ const App: React.FC = () => {
                             onSelectModel={(m) => {
                                 if(activeSessionId) setSessionModels(prev => ({...prev, [activeSessionId]: m}));
                             }}
+                            onUpdateCouncilModels={(models) => updateCouncilModels(activeSessionId!, models)}
                             sendKey={settings.sendKey}
                             hasOpenRouterKey={!!(settings.apiKeys.openRouter || settings.apiKeys.openRouterAlt)}
                             hasDeepSeekKey={!!settings.apiKeys.deepSeek}

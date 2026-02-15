@@ -89,8 +89,6 @@ export const SessionList: React.FC<SessionListProps> = ({
             if (innerBox && listRef.current) {
                 const containerRect = listRef.current.getBoundingClientRect();
                 const boxRect = innerBox.getBoundingClientRect();
-                
-                // Calculate position relative to the scroll container's content
                 const relativeTop = boxRect.top - containerRect.top + listRef.current.scrollTop;
                 
                 setIndicatorStyle({
@@ -108,9 +106,7 @@ export const SessionList: React.FC<SessionListProps> = ({
         }
     };
 
-    // Re-calculate with a slight delay to ensure DOM state is updated
     const timer = setTimeout(updateIndicator, 50);
-    
     const observer = new ResizeObserver(updateIndicator);
     if (listRef.current) observer.observe(listRef.current);
 
@@ -131,12 +127,14 @@ export const SessionList: React.FC<SessionListProps> = ({
   const handleStatusClick = (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    // Use fixed viewport coords
     setMenuPosition({ top: rect.bottom + 5, left: rect.left });
     setStatusMenuOpenId(sessionId);
   };
 
   const handleContextMenu = (e: React.MouseEvent, sessionId: string) => {
       e.preventDefault();
+      e.stopPropagation();
       setContextMenu({ x: e.clientX, y: e.clientY, sessionId });
   };
 
@@ -168,6 +166,7 @@ export const SessionList: React.FC<SessionListProps> = ({
       } else if (action === 'new_session') {
           onNewSession();
       }
+      setContextMenu(null);
   };
 
   return (
@@ -210,14 +209,14 @@ export const SessionList: React.FC<SessionListProps> = ({
             className="absolute bg-[var(--accent)] z-20 active-indicator-bar pointer-events-none"
             style={indicatorStyle}
         />
-        {displayedSessions.length > 0 && <div className="px-2 mb-2 text-[10px] font-bold text-[var(--text-dim)] tracking-widest uppercase">Today</div>}
+        {displayedSessions.length > 0 && <div className="px-2 mb-2 text-[10px] font-bold text-[var(--text-dim)] tracking-widest uppercase">Latest</div>}
         <div className="space-y-0.5">
             {displayedSessions.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-3 opacity-60">
                     <MessageSquareDashed className="w-10 h-10 text-[var(--text-dim)]" strokeWidth={1.5} />
                     <div>
-                        <div className="text-[13px] font-semibold text-[var(--text-main)]">No sessions found</div>
-                        <div className="text-[12px] text-[var(--text-dim)]">Create a new session to get started.</div>
+                        <div className="text-[13px] font-semibold text-[var(--text-main)]">Empty here</div>
+                        <div className="text-[12px] text-[var(--text-dim)]">Create a new session to begin.</div>
                     </div>
                 </div>
             ) : (
@@ -239,17 +238,17 @@ export const SessionList: React.FC<SessionListProps> = ({
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between">
-                                        <div className={`text-[14px] font-semibold truncate ${isActive ? 'text-[var(--text-main)]' : (session.status === 'done' ? 'text-[var(--text-dim)] line-through' : 'text-[var(--text-main)]')}`}>
+                                        <div className={`text-[14px] font-semibold truncate pr-2 ${isActive ? 'text-[var(--text-main)]' : (session.status === 'done' ? 'text-[var(--text-dim)] line-through' : 'text-[var(--text-main)]')}`}>
                                             {session.title}
                                         </div>
-                                        <span className="text-[11px] text-[var(--text-dim)] font-medium flex-shrink-0 ml-2">1d</span>
+                                        <span className="text-[11px] text-[var(--text-dim)] font-medium flex-shrink-0">now</span>
                                     </div>
                                     <div className="flex items-center justify-between mt-1">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 overflow-hidden">
                                             {session.hasNewResponse && (
                                                 <span className="text-[9px] font-black bg-[var(--accent)] text-[var(--bg-primary)] px-1.5 py-0.5 rounded tracking-tighter">New</span>
                                             )}
-                                            <span className="text-[9px] font-bold bg-[var(--bg-tertiary)] text-[var(--text-muted)] px-1.5 py-0.5 rounded tracking-tighter border border-[var(--border)]">{session.mode === 'execute' ? 'Execute' : 'Explore'}</span>
+                                            <span className="text-[9px] font-bold bg-[var(--bg-tertiary)] text-[var(--text-muted)] px-1.5 py-0.5 rounded tracking-tighter border border-[var(--border)] uppercase truncate">{session.mode || 'Explore'}</span>
                                             <div className="flex items-center gap-1">
                                                 {session.labelIds?.map(lid => {
                                                     const label = availableLabels.find(l => l.id === lid);
@@ -258,7 +257,7 @@ export const SessionList: React.FC<SessionListProps> = ({
                                                     ) : null;
                                                 })}
                                             </div>
-                                            {session.isFlagged && <Flag className="w-3 h-3 text-red-500 fill-red-500" />}
+                                            {session.isFlagged && <Flag className="w-3 h-3 text-red-500 fill-red-500 flex-shrink-0" />}
                                         </div>
                                     </div>
                                 </div>

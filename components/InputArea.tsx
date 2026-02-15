@@ -14,7 +14,9 @@ import {
   AlertCircle,
   AlertTriangle,
   Circle,
-  Sparkles
+  Sparkles,
+  Users,
+  Check
 } from 'lucide-react';
 import { Attachment, Agent, Label, SessionStatus, SessionMode, GEMINI_MODELS, OPENROUTER_FREE_MODELS, DEEPSEEK_MODELS, MOONSHOT_MODELS } from '../types';
 import { ModelSelector } from './ModelSelector';
@@ -40,9 +42,11 @@ interface InputAreaProps {
   hasMoonshotKey?: boolean;
   currentMode: SessionMode;
   onUpdateMode: (mode: SessionMode) => void;
+  onUpdateCouncilModels?: (models: string[]) => void;
   hasAnyKey?: boolean;
   onUpArrow?: () => void;
   externalValue?: string;
+  councilModels?: string[];
 }
 
 export const InputArea: React.FC<InputAreaProps> = ({ 
@@ -64,9 +68,11 @@ export const InputArea: React.FC<InputAreaProps> = ({
     hasMoonshotKey,
     currentMode,
     onUpdateMode,
+    onUpdateCouncilModels,
     hasAnyKey = true,
     onUpArrow,
-    externalValue
+    externalValue,
+    councilModels = []
 }) => {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -74,9 +80,11 @@ export const InputArea: React.FC<InputAreaProps> = ({
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const [isModeMenuOpen, setIsModeMenuOpen] = useState(false);
+  const [isCouncilPickerOpen, setIsCouncilPickerOpen] = useState(false);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const statusBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (externalValue !== undefined && externalValue !== null && externalValue !== '') {
@@ -91,7 +99,8 @@ export const InputArea: React.FC<InputAreaProps> = ({
   }, [externalValue]);
 
   const isCurrentModelValid = useMemo(() => {
-    if (!currentModel) return false;
+    if (!currentModel && currentMode !== 'council') return false;
+    if (currentMode === 'council') return !!process.env.API_KEY; // Minimal requirement for synthesizer
     const agent = agents.find(a => a.id === currentModel);
     const targetModelId = agent ? agent.baseModel : currentModel;
     if (GEMINI_MODELS.includes(targetModelId)) return !!process.env.API_KEY;
@@ -99,7 +108,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
     if (DEEPSEEK_MODELS.includes(targetModelId)) return !!hasDeepSeekKey;
     if (MOONSHOT_MODELS.includes(targetModelId)) return !!hasMoonshotKey;
     return false;
-  }, [currentModel, agents, hasOpenRouterKey, hasDeepSeekKey, hasMoonshotKey]);
+  }, [currentModel, currentMode, agents, hasOpenRouterKey, hasDeepSeekKey, hasMoonshotKey]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -107,8 +116,6 @@ export const InputArea: React.FC<InputAreaProps> = ({
       const scrollHeight = textareaRef.current.scrollHeight;
       const finalHeight = input ? Math.min(scrollHeight, 200) : 28;
       textareaRef.current.style.height = `${finalHeight}px`;
-      
-      // Prevent scrollbar until necessary
       textareaRef.current.style.overflowY = scrollHeight > 200 ? 'auto' : 'hidden';
     }
   }, [input]);
@@ -147,6 +154,14 @@ export const InputArea: React.FC<InputAreaProps> = ({
       }
   };
 
+  const toggleCouncilModel = (m: string) => {
+    if (!onUpdateCouncilModels) return;
+    const newModels = councilModels.includes(m) 
+        ? councilModels.filter(x => x !== m) 
+        : (councilModels.length < 3 ? [...councilModels, m] : [councilModels[1], councilModels[2], m]);
+    onUpdateCouncilModels(newModels);
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files) {
           Array.from(e.target.files).forEach((file: File) => {
@@ -170,13 +185,22 @@ export const InputArea: React.FC<InputAreaProps> = ({
 
   const activeAgent = agents.find(a => a.id === currentModel);
   const getModelNameDisplay = () => {
+    if (currentMode === 'council') return `Council (${councilModels.length}/3)`;
     if (!isCurrentModelValid) return "Key Required";
     if (activeAgent) return activeAgent.name;
     const parts = currentModel.split('/');
     return parts[parts.length - 1].split(':')[0];
   };
 
-  const StatusIcon = STATUS_CONFIG[currentStatus].icon;
+  const getStatusBtnCoords = () => {
+    if (statusBtnRef.current) {
+        const rect = statusBtnRef.current.getBoundingClientRect();
+        return { bottom: (window.innerHeight - rect.top) + 8, right: (window.innerWidth - rect.right) };
+    }
+    return { bottom: '100%', right: 0, marginBottom: '8px' };
+  };
+
+  const ModeIcon = currentMode === 'explore' ? Compass : (currentMode === 'execute' ? RefreshCcw : Users);
 
   return (
     <div id="tour-input-area" className="w-full max-w-3xl floating-input-shadow rounded-2xl bg-[var(--input-bg)] border border-[var(--border)] overflow-visible">
@@ -187,7 +211,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
                   onClick={() => setIsModeMenuOpen(!isModeMenuOpen)}
                   className="flex items-center gap-2 bg-[var(--bg-elevated)] hover:bg-[var(--bg-tertiary)] px-2.5 py-1 rounded-xl border border-[var(--border)] text-[10px] font-black text-[var(--text-muted)] tracking-widest transition-all active:scale-95 group"
                 >
-                  {currentMode === 'explore' ? <Compass className="w-3 h-3 group-hover:rotate-12 transition-transform" /> : <RefreshCcw className="w-3 h-3 group-hover:rotate-180 transition-transform" />}
+                  <ModeIcon className="w-3 h-3 transition-transform" />
                   <span className="capitalize">{currentMode}</span>
                   <ChevronDown className={`w-2.5 h-2.5 opacity-30 transition-transform duration-200 ${isModeMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
@@ -195,52 +219,38 @@ export const InputArea: React.FC<InputAreaProps> = ({
                     <>
                         <div className="fixed inset-0 z-40" onClick={() => setIsModeMenuOpen(false)} />
                         <div className="absolute bottom-full left-0 mb-3 w-44 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] py-2 z-50 overflow-hidden animate-in fade-in zoom-in-95 origin-bottom-left backdrop-blur-xl">
-                            <div 
-                              onClick={() => { onUpdateMode('explore'); setIsModeMenuOpen(false); }} 
-                              className={`flex items-center justify-between px-4 py-2.5 cursor-pointer transition-colors ${currentMode === 'explore' ? 'bg-[var(--bg-elevated)] text-[var(--text-main)]' : 'text-[var(--text-dim)] hover:text-[var(--text-main)] hover:bg-[var(--bg-elevated)]'}`}
-                            >
+                            <div onClick={() => { onUpdateMode('explore'); setIsModeMenuOpen(false); }} className={`flex items-center justify-between px-4 py-2.5 cursor-pointer transition-colors ${currentMode === 'explore' ? 'bg-[var(--bg-elevated)] text-[var(--text-main)]' : 'text-[var(--text-dim)] hover:text-[var(--text-main)] hover:bg-[var(--bg-elevated)]'}`}>
                                 <span className="text-[11px] font-bold">Explore</span>
-                                {currentMode === 'explore' && <Compass className="w-3.5 h-3.5" />}
+                                <Compass className="w-3.5 h-3.5" />
                             </div>
-                            <div 
-                              onClick={() => { onUpdateMode('execute'); setIsModeMenuOpen(false); }} 
-                              className={`flex items-center justify-between px-4 py-2.5 cursor-pointer transition-colors ${currentMode === 'execute' ? 'bg-[var(--bg-elevated)] text-[var(--text-main)]' : 'text-[var(--text-dim)] hover:text-[var(--text-main)] hover:bg-[var(--bg-elevated)]'}`}
-                            >
+                            <div onClick={() => { onUpdateMode('execute'); setIsModeMenuOpen(false); }} className={`flex items-center justify-between px-4 py-2.5 cursor-pointer transition-colors ${currentMode === 'execute' ? 'bg-[var(--bg-elevated)] text-[var(--text-main)]' : 'text-[var(--text-dim)] hover:text-[var(--text-main)] hover:bg-[var(--bg-elevated)]'}`}>
                                 <span className="text-[11px] font-bold">Execute</span>
-                                {currentMode === 'execute' && <RefreshCcw className="w-3.5 h-3.5" />}
+                                <RefreshCcw className="w-3.5 h-3.5" />
+                            </div>
+                            <div onClick={() => { onUpdateMode('council'); setIsModeMenuOpen(false); }} className={`flex items-center justify-between px-4 py-2.5 cursor-pointer transition-colors ${currentMode === 'council' ? 'bg-[var(--bg-elevated)] text-[var(--text-main)]' : 'text-[var(--text-dim)] hover:text-[var(--text-main)] hover:bg-[var(--bg-elevated)]'}`}>
+                                <span className="text-[11px] font-bold">Council</span>
+                                <Users className="w-3.5 h-3.5" />
                             </div>
                         </div>
                     </>
                 )}
             </div>
             <button 
+                ref={statusBtnRef}
                 onClick={() => setIsStatusMenuOpen(true)}
                 className="p-1.5 rounded-full hover:bg-[var(--bg-elevated)] transition-all group active:scale-90"
             >
-                <StatusIcon className={`w-3.5 h-3.5 ${STATUS_CONFIG[currentStatus].color} opacity-60 group-hover:opacity-100 transition-opacity`} />
+                <Circle className={`w-3.5 h-3.5 ${STATUS_CONFIG[currentStatus].color} opacity-60 group-hover:opacity-100 transition-opacity`} />
             </button>
-            <StatusSelector isOpen={isStatusMenuOpen} onClose={() => setIsStatusMenuOpen(false)} currentStatus={currentStatus} onSelect={onUpdateStatus} position={{ bottom: '100%', right: 0, marginBottom: '8px' }} />
+            <StatusSelector isOpen={isStatusMenuOpen} onClose={() => setIsStatusMenuOpen(false)} currentStatus={currentStatus} onSelect={onUpdateStatus} position={getStatusBtnCoords()} />
         </div>
-
-        {attachments.length > 0 && (
-            <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 px-1">
-                {attachments.map((att, i) => (
-                    <div key={i} className="relative flex-shrink-0">
-                        <div className="w-11 h-11 rounded-xl border border-[var(--border)] overflow-hidden bg-[var(--bg-secondary)] flex items-center justify-center group/att">
-                            {att.type.startsWith('image/') ? <img src={att.data} alt={att.name} className="w-full h-full object-cover transition-transform duration-500 group-hover/att:scale-110" /> : <FileIcon className="w-4 h-4 text-[var(--text-dim)]" />}
-                        </div>
-                        <button onClick={() => removeAttachment(i)} className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-1 shadow-xl hover:bg-red-600 transition-colors"><X className="w-2.5 h-2.5" /></button>
-                    </div>
-                ))}
-            </div>
-        )}
 
         <textarea
           ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isLoading ? "Generating..." : "Ask Shuper..."}
+          placeholder={isLoading ? "Working..." : "What's on your mind?"}
           className="w-full bg-transparent border-0 text-[var(--text-main)] placeholder-[var(--text-dim)] px-2.5 py-1 focus:ring-0 focus:outline-none resize-none min-h-[28px] max-h-[200px] custom-scrollbar text-[15px] font-medium leading-relaxed overflow-hidden"
           rows={1}
         />
@@ -254,13 +264,36 @@ export const InputArea: React.FC<InputAreaProps> = ({
                 <div className="relative">
                     <button 
                         id="tour-model-selector"
-                        onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
+                        onClick={() => currentMode === 'council' ? setIsCouncilPickerOpen(true) : setIsModelMenuOpen(!isModelMenuOpen)}
                         className={`text-[10px] font-black tracking-[0.05em] flex items-center gap-1.5 transition-all px-2 py-1 rounded-lg hover:bg-[var(--bg-elevated)] ${!isCurrentModelValid ? 'text-red-400' : 'text-[var(--text-dim)] hover:text-[var(--text-main)]'}`}
                     >
-                        <span className="max-w-[150px] truncate">{getModelNameDisplay()}</span>
+                        <span className="max-w-[150px] truncate uppercase">{getModelNameDisplay()}</span>
                         <ChevronDown className="w-2.5 h-2.5 opacity-30" />
                     </button>
-                    <ModelSelector isOpen={isModelMenuOpen} onClose={() => setIsModelMenuOpen(false)} currentModel={currentModel} onSelect={onSelectModel} visibleModels={visibleModels} agents={agents} hasOpenRouterKey={hasOpenRouterKey} hasDeepSeekKey={hasDeepSeekKey} hasMoonshotKey={hasMoonshotKey} />
+                    {currentMode === 'council' ? (
+                        isCouncilPickerOpen && (
+                            <>
+                                <div className="fixed inset-0 z-[100]" onClick={() => setIsCouncilPickerOpen(false)} />
+                                <div className="absolute bottom-full right-0 mb-3 w-64 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl shadow-2xl p-4 z-[110] animate-in fade-in zoom-in-95 origin-bottom-right">
+                                    <h4 className="text-[10px] font-black uppercase text-[var(--text-dim)] mb-3 tracking-widest px-1">Select 3 Models</h4>
+                                    <div className="space-y-1 max-h-64 overflow-y-auto custom-scrollbar">
+                                        {[...GEMINI_MODELS, ...OPENROUTER_FREE_MODELS].map(mId => (
+                                            <div key={mId} onClick={() => toggleCouncilModel(mId)} className="flex items-center justify-between px-3 py-2 hover:bg-[var(--bg-secondary)] rounded-xl cursor-pointer group transition-colors">
+                                                <span className={`text-[12px] font-bold truncate max-w-[160px] ${councilModels.includes(mId) ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}>{mId.split('/').pop()?.split(':')[0]}</span>
+                                                {councilModels.includes(mId) && <Check className="w-3.5 h-3.5 text-[var(--accent)]" />}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="mt-4 pt-3 border-t border-[var(--border)] flex items-center justify-between px-1">
+                                        <span className="text-[9px] font-bold text-[var(--text-dim)] uppercase">Ready to deliberate</span>
+                                        <button onClick={() => setIsCouncilPickerOpen(false)} className="px-3 py-1 bg-[var(--text-main)] text-[var(--bg-primary)] rounded-lg text-[10px] font-bold">Done</button>
+                                    </div>
+                                </div>
+                            </>
+                        )
+                    ) : (
+                        <ModelSelector isOpen={isModelMenuOpen} onClose={() => setIsModelMenuOpen(false)} currentModel={currentModel} onSelect={onSelectModel} visibleModels={visibleModels} agents={agents} hasOpenRouterKey={hasOpenRouterKey} hasDeepSeekKey={hasDeepSeekKey} hasMoonshotKey={hasMoonshotKey} />
+                    )}
                 </div>
                 <button 
                     onClick={handleSend} 

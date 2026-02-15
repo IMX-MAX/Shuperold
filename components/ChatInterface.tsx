@@ -29,9 +29,11 @@ import {
   LayoutTemplate,
   PanelRight,
   Circle,
-  Tag
+  Tag,
+  Users
 } from 'lucide-react';
 import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import vscDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus';
 import { Message, Session, Label, Attachment, Agent, OPENROUTER_FREE_MODELS, DEEPSEEK_MODELS, MOONSHOT_MODELS, GEMINI_MODELS, SessionMode, UserSettings } from '../types';
@@ -55,6 +57,7 @@ interface ChatInterfaceProps {
   onDeleteSession: () => void;
   onRenameSession: (newTitle: string) => void;
   onUpdateMode: (mode: SessionMode) => void;
+  onUpdateCouncilModels?: (models: string[]) => void;
   onChangeView: (view: 'chat' | 'agents' | 'settings') => void;
   visibleModels: string[];
   agents: Agent[];
@@ -133,7 +136,7 @@ const ThinkingBlock = ({ steps, thoughtProcess, isGenerating }: { steps: string[
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
     session, messages, onSendMessage, onStopGeneration, isLoading, onUpdateStatus,
     availableLabels, onUpdateLabels, onCreateLabel, onDeleteSession, onRenameSession,
-    onUpdateMode, onChangeView, onNewSession, visibleModels, agents, currentModel, onSelectModel,
+    onUpdateMode, onUpdateCouncilModels, onChangeView, onNewSession, visibleModels, agents, currentModel, onSelectModel,
     sendKey, onRegenerateTitle, onToggleFlag, hasOpenRouterKey, hasDeepSeekKey, hasMoonshotKey,
     onBackToList, onOpenSidebar, hasAnyKey, userSettings
 }) => {
@@ -153,8 +156,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const [isLabelMenuOpen, setIsLabelMenuOpen] = useState(false);
   
-  const [statusMenuPos, setStatusMenuPos] = useState<{ top: number, right: number } | undefined>(undefined);
-  const [labelMenuPos, setLabelMenuPos] = useState<{ top: number, right: number } | undefined>(undefined);
+  const [statusMenuPos, setStatusMenuPos] = useState<React.CSSProperties | undefined>(undefined);
+  const [labelMenuPos, setLabelMenuPos] = useState<{ top: number, left: number } | undefined>(undefined);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -272,7 +275,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const openStatusMenu = () => {
       if (statusButtonRef.current) {
           const rect = statusButtonRef.current.getBoundingClientRect();
-          setStatusMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+          setStatusMenuPos({ top: rect.bottom + 4, left: rect.left });
           setIsStatusMenuOpen(true);
       }
   };
@@ -280,7 +283,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const openLabelMenu = () => {
       if (labelButtonRef.current) {
           const rect = labelButtonRef.current.getBoundingClientRect();
-          setLabelMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+          setLabelMenuPos({ top: rect.bottom + 4, left: rect.left });
           setIsLabelMenuOpen(true);
       }
   };
@@ -302,7 +305,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     >
       <div className="flex-1 flex flex-col h-full relative">
         <div className="h-14 flex items-center justify-between px-6 z-30 absolute top-0 left-0 right-0 bg-[var(--bg-tertiary)]/80 backdrop-blur-md">
-          <div className="flex items-center gap-2 max-w-[60%]">
+          <div className="flex items-center gap-2 max-w-[50%]">
               {onBackToList && (
                   <button onClick={onBackToList} className="md:hidden p-1 rounded hover:bg-[var(--bg-elevated)] text-[var(--text-main)]"><ChevronLeft className="w-5 h-5" /></button>
               )}
@@ -317,7 +320,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             <Bot className="w-5 h-5 text-[var(--text-muted)]" />
                         )
                     )}
-                    <span className="truncate lowercase">{session.title}</span>
+                    <span className="truncate lowercase max-w-[140px] md:max-w-[240px]">{session.title}</span>
                     <ChevronDown className="w-3.5 h-3.5 text-[var(--text-dim)]" />
                   </div>
               )}
@@ -363,7 +366,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 pt-20 pb-72 custom-scrollbar" ref={scrollRef}>
+        <div className="flex-1 overflow-y-auto px-4 pt-20 pb-40 custom-scrollbar" ref={scrollRef}>
           {!hasAnyKey && (
               <div className="max-w-xl mx-auto mt-20 p-8 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-center animate-in fade-in zoom-in-95 duration-500 shadow-2xl">
                   <div className="w-16 h-16 rounded-2xl bg-neutral-500/10 flex items-center justify-center mx-auto mb-6"><Key className="w-8 h-8 text-[var(--text-main)]" /></div>
@@ -404,7 +407,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                       <div className="flex items-center gap-4 text-[var(--text-main)] text-xs md:text-sm animate-pulse ml-1 mb-8 py-2">
                                           <WaveLoader />
                                           <span className="font-bold tracking-widest text-[11px] text-[var(--text-muted)] italic">
-                                            Generating...
+                                            {session.mode === 'council' ? 'Council Deliberating...' : 'Generating...'}
                                           </span>
                                       </div>
                                   )}
@@ -413,7 +416,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                   )}
                                   {mainContent && (
                                       <div className="markdown-body transition-opacity duration-300 overflow-x-auto font-medium">
-                                          <Markdown components={{
+                                          <Markdown remarkPlugins={[remarkGfm]} components={{
                                               code({node, inline, className, children, ...props}: any) {
                                                   const match = /language-(\w+)/.exec(className || '')
                                                   const codeString = String(children).replace(/\n$/, '');
@@ -455,6 +458,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                               {copiedId === msg.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3 group-hover/btn:scale-110" />}
                                               <span className="text-[10px] font-bold uppercase tracking-widest opacity-80 group-hover/btn:opacity-100">{copiedId === msg.id ? 'Copied' : 'Copy'}</span>
                                           </button>
+                                          {session.mode === 'council' && (
+                                              <div className="flex items-center gap-2 text-[10px] text-[var(--text-dim)] font-bold uppercase tracking-widest bg-[var(--bg-elevated)] px-3 py-1 rounded-full border border-[var(--border)]">
+                                                  <Users className="w-3 h-3" />
+                                                  <span>Council Synthesis</span>
+                                              </div>
+                                          )}
                                       </div>
                                   )}
                               </div>
@@ -507,6 +516,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   onUpdateMode={onUpdateMode}
                   onUpArrow={handleUpArrowOnInput}
                   externalValue={editContent}
+                  councilModels={session.councilModels}
+                  onUpdateCouncilModels={onUpdateCouncilModels}
              />
         </div>
 
