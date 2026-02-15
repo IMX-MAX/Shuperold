@@ -162,7 +162,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
 
   const activeAgent = agents.find(a => a.id === currentModel);
   const getModelNameDisplay = () => {
-    if (!hasAnyKey) return "KEY REQUIRED";
+    if (!isCurrentModelValid) return "KEY REQUIRED";
     if (activeAgent) return activeAgent.name;
     const parts = currentModel.split('/');
     return parts[parts.length - 1].split(':')[0];
@@ -246,7 +246,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
                 <div className="relative">
                     <button 
                         onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                        className="text-[11px] font-black text-[var(--text-dim)] hover:text-[var(--text-main)] uppercase tracking-[0.15em] flex items-center gap-2 transition-all px-2 py-1 rounded-lg hover:bg-[var(--bg-elevated)]"
+                        className={`text-[11px] font-black uppercase tracking-[0.15em] flex items-center gap-2 transition-all px-2 py-1 rounded-lg hover:bg-[var(--bg-elevated)] ${!isCurrentModelValid ? 'text-red-400' : 'text-[var(--text-dim)] hover:text-[var(--text-main)]'}`}
                     >
                         <span>{getModelNameDisplay()}</span>
                         <ChevronDown className="w-3 h-3 opacity-30" />
@@ -255,8 +255,8 @@ export const InputArea: React.FC<InputAreaProps> = ({
                 </div>
                 <button 
                     onClick={handleSend} 
-                    disabled={(!input.trim() && attachments.length === 0 && !isLoading)}
-                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${(!input.trim() && !isLoading) ? 'bg-[var(--bg-elevated)] text-[var(--text-dim)]' : 'bg-[var(--accent)] text-[var(--bg-primary)] hover:scale-110 shadow-lg active:scale-90'}`}
+                    disabled={(!input.trim() && attachments.length === 0 && !isLoading) || !isCurrentModelValid}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${((!input.trim() && !isLoading) || !isCurrentModelValid) ? 'bg-[var(--bg-elevated)] text-[var(--text-dim)] opacity-50' : 'bg-[var(--accent)] text-[var(--bg-primary)] hover:scale-110 shadow-lg active:scale-90'}`}
                 >
                     {isLoading ? <div className="w-2.5 h-2.5 bg-current rounded-[1px] animate-pulse" /> : <ArrowUp className="w-4.5 h-4.5" strokeWidth={3} />}
                 </button>

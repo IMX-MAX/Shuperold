@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Agent, GEMINI_MODELS, OPENROUTER_FREE_MODELS, DEEPSEEK_MODELS, MOONSHOT_MODELS } from '../types';
-import { Plus, Bot, ChevronRight, Save, Trash2, Edit2, Copy, ChevronDown, ArrowRight, History, Camera, Image as ImageIcon, X } from 'lucide-react';
+import { Plus, Bot, ChevronRight, Save, Trash2, Edit2, Copy, ChevronDown, ArrowRight, History, Camera, Image as ImageIcon, X, Sparkles, Network, Hexagon, Moon } from 'lucide-react';
 
 interface AgentsViewProps {
   agents: Agent[];
@@ -83,12 +83,10 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
     }
   };
 
-  // Simplified model list to match screenshot
-  const QUICK_MODELS = [
-      'gemini-flash-lite-latest',
-      'deepseek-chat',
-      'deepseek-reasoner'
-  ];
+  const getModelLabel = (m: string) => {
+      if (m.includes('/')) return m.split('/')[1].split(':')[0];
+      return m;
+  };
 
   return (
     <div className="flex-1 flex h-full bg-[var(--bg-primary)] text-[var(--text-main)] font-inter select-none">
@@ -97,7 +95,7 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
           <>
             <div className="fixed inset-0 z-[100]" onClick={() => setAgentContextMenu(null)} />
             <div 
-                className="fixed z-[110] w-48 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl shadow-2xl py-1.5 text-[13px] animate-in fade-in zoom-in-95 duration-100 origin-top-left"
+                className="fixed z-[110] w-48 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-xl shadow-2xl py-1.5 text-[13px] animate-in fade-in zoom-in-95 duration-100 origin-top-left backdrop-blur-md"
                 style={{ top: agentContextMenu.y, left: agentContextMenu.x }}
             >
                 <div 
@@ -168,15 +166,15 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
                               ) : (
                                 <Bot className="w-4 h-4 text-[var(--text-muted)]" />
                               )}
-                              <span className="font-medium text-[14px] truncate">{agent.name}</span>
+                              <span className="font-medium text-[14px] truncate lowercase">{agent.name}</span>
                           </div>
                       </div>
-                      <p className="text-xs text-[var(--text-dim)] line-clamp-1">{agent.baseModel}</p>
+                      <p className="text-xs text-[var(--text-dim)] line-clamp-1">{getModelLabel(agent.baseModel)}</p>
                   </div>
               ))}
               {agents.length === 0 && !isCreating && (
                   <div className="text-center py-12 px-6">
-                      <div className="w-12 h-12 bg-[var(--bg-elevated)] rounded-2xl flex items-center justify-center mx-auto mb-4 border border-[var(--border)]">
+                      <div className="w-12 h-12 bg-[var(--bg-elevated)]/50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-[var(--border)]">
                           <Bot className="w-6 h-6 text-[var(--text-dim)]" />
                       </div>
                       <p className="text-[13px] text-[var(--text-dim)] font-medium">No agents created yet.</p>
@@ -229,7 +227,7 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
                              value={name}
                              onChange={(e) => setName(e.target.value)}
                              placeholder="New agent"
-                             className="text-4xl font-bold bg-transparent border-none outline-none text-[var(--text-main)] tracking-tight w-full placeholder:opacity-30 focus:ring-0"
+                             className="text-4xl font-bold bg-transparent border-none outline-none text-[var(--text-main)] tracking-tight w-full placeholder:opacity-30 focus:ring-0 lowercase"
                           />
                       </div>
                       
@@ -265,33 +263,60 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ agents, onCreateAgent, o
                                   <div className="relative">
                                       <button 
                                         onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                                        className="flex items-center gap-1.5 text-[15px] font-medium text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors py-2 px-3 rounded-xl bg-[var(--bg-secondary)]/50"
+                                        className="flex items-center gap-2 text-[15px] font-medium text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors py-2 px-3 rounded-xl bg-[var(--bg-secondary)]/50"
                                       >
-                                          <span className="truncate max-w-[120px]">{baseModel === 'gemini-3-flash-preview' ? 'Model' : baseModel}</span>
+                                          <span className="truncate max-w-[140px] lowercase">{getModelLabel(baseModel)}</span>
                                           <ChevronDown className="w-4 h-4 opacity-50" />
                                       </button>
                                       
                                       {isModelMenuOpen && (
-                                          <div className="absolute bottom-full right-0 mb-3 w-64 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 overflow-hidden">
-                                              {QUICK_MODELS.map(m => (
+                                          <div className="absolute bottom-full right-0 mb-3 w-64 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 overflow-y-auto max-h-[400px] custom-scrollbar backdrop-blur-xl">
+                                              <div className="px-4 py-1.5 text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider sticky top-0 bg-[var(--bg-elevated)]/90 backdrop-blur-md">Google Gemini</div>
+                                              {GEMINI_MODELS.map(m => (
                                                   <div 
                                                     key={m} 
                                                     onClick={() => { setBaseModel(m); setIsModelMenuOpen(false); }}
-                                                    className="px-4 py-2.5 hover:bg-[var(--bg-secondary)] text-[13px] text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer transition-colors"
+                                                    className="px-4 py-2.5 hover:bg-[var(--bg-secondary)] text-[13px] text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer transition-colors flex items-center gap-2"
                                                   >
-                                                      {m}
+                                                      <Sparkles className="w-3 h-3 text-blue-400" />
+                                                      <span>{m}</span>
                                                   </div>
                                               ))}
-                                              <div className="h-[1px] bg-[var(--border)] my-1 mx-2" />
-                                              <div className="px-4 py-2 text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-widest">More</div>
-                                              {GEMINI_MODELS.filter(m => !QUICK_MODELS.includes(m)).map(m => (
-                                                   <div 
-                                                   key={m} 
-                                                   onClick={() => { setBaseModel(m); setIsModelMenuOpen(false); }}
-                                                   className="px-4 py-2.5 hover:bg-[var(--bg-secondary)] text-[13px] text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer transition-colors"
-                                                 >
-                                                     {m}
-                                                 </div>
+
+                                              <div className="px-4 py-1.5 text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider sticky top-[110px] bg-[var(--bg-elevated)]/90 backdrop-blur-md mt-2 border-t border-[var(--border)]">OpenRouter (Free)</div>
+                                              {OPENROUTER_FREE_MODELS.map(m => (
+                                                  <div 
+                                                    key={m} 
+                                                    onClick={() => { setBaseModel(m); setIsModelMenuOpen(false); }}
+                                                    className="px-4 py-2.5 hover:bg-[var(--bg-secondary)] text-[13px] text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer transition-colors flex items-center gap-2"
+                                                  >
+                                                      <Network className="w-3 h-3 text-emerald-400" />
+                                                      <span className="truncate">{getModelLabel(m)}</span>
+                                                  </div>
+                                              ))}
+
+                                              <div className="px-4 py-1.5 text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider sticky top-[200px] bg-[var(--bg-elevated)]/90 backdrop-blur-md mt-2 border-t border-[var(--border)]">DeepSeek</div>
+                                              {DEEPSEEK_MODELS.map(m => (
+                                                  <div 
+                                                    key={m} 
+                                                    onClick={() => { setBaseModel(m); setIsModelMenuOpen(false); }}
+                                                    className="px-4 py-2.5 hover:bg-[var(--bg-secondary)] text-[13px] text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer transition-colors flex items-center gap-2"
+                                                  >
+                                                      <Hexagon className="w-3 h-3 text-blue-500" />
+                                                      <span>{m}</span>
+                                                  </div>
+                                              ))}
+
+                                              <div className="px-4 py-1.5 text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider sticky top-[280px] bg-[var(--bg-elevated)]/90 backdrop-blur-md mt-2 border-t border-[var(--border)]">Moonshot AI</div>
+                                              {MOONSHOT_MODELS.map(m => (
+                                                  <div 
+                                                    key={m} 
+                                                    onClick={() => { setBaseModel(m); setIsModelMenuOpen(false); }}
+                                                    className="px-4 py-2.5 hover:bg-[var(--bg-secondary)] text-[13px] text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer transition-colors flex items-center gap-2"
+                                                  >
+                                                      <Moon className="w-3 h-3 text-orange-400" />
+                                                      <span>{m}</span>
+                                                  </div>
                                               ))}
                                           </div>
                                       )}
