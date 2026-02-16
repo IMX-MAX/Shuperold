@@ -1,5 +1,5 @@
 {
-  "name": "Shuper (latest)",
-  "description": "AI workspaxe",
+  "name": "Shuper AI",
+  "description": "A private, local-first AI workspace allowing instant model switching and multi-agent collaboration.",
   "requestFramePermissions": []
 }
